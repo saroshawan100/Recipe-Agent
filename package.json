@@ -1,0 +1,19 @@
+{
+  "name": "pantry-chef",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Intelligent cooking assistant: recipe suggestions from your pantry, macros, shopping lists, and live chef coaching.",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c yellow,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "start": "npm run start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}

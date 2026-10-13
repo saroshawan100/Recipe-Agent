@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+
+  --color-saffron-50: #fff8eb;
+  --color-saffron-100: #ffeccb;
+  --color-saffron-200: #ffdc96;
+  --color-saffron-300: #ffc95c;
+  --color-saffron-400: #ffb627;
+  --color-saffron-500: #f4a300;
+  --color-saffron-600: #d18a00;
+  --color-saffron-700: #a66d00;
+
+  --color-herb-300: #a8d5a2;
+  --color-herb-400: #7cbf77;
+  --color-herb-500: #5aa457;
+  --color-herb-600: #43863f;
+  --color-herb-700: #2f6630;
+
+  --color-tomato-300: #f8a493;
+  --color-tomato-400: #f2775f;
+  --color-tomato-500: #e5533d;
+  --color-tomato-600: #c7402b;
+
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgb(244 163 0 / 0.55); }
+    100% { box-shadow: 0 0 0 18px rgb(244 163 0 / 0); }
+  }
+}
+
+:root {
+  --bg: #fbf7f0;
+  --surface: #ffffff;
+  --surface-2: #f4eee4;
+  --line: #e8dfd1;
+  --fg: #1f1a14;
+  --muted: #7a6f62;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #12100e;
+  --surface: #1c1915;
+  --surface-2: #26221d;
+  --line: #332d26;
+  --fg: #f6f1e9;
+  --muted: #a39888;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    background-image:
+      radial-gradient(60rem 40rem at 110% -10%, rgb(244 163 0 / 0.1), transparent 60%),
+      radial-gradient(50rem 35rem at -10% 10%, rgb(90 164 87 / 0.08), transparent 60%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    @apply font-display tracking-tight;
+  }
+  ::selection {
+    background: rgb(244 163 0 / 0.35);
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-saffron-500;
+  }
+}
+
+@utility glass {
+  background: color-mix(in oklab, var(--surface) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+}
+
+@utility shimmer-bg {
+  background: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in oklab, var(--surface-2) 60%, var(--surface)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.prose-chef p { margin: 0.4rem 0; }
+.prose-chef ul { list-style: disc; padding-left: 1.2rem; margin: 0.4rem 0; }
+.prose-chef ol { list-style: decimal; padding-left: 1.2rem; margin: 0.4rem 0; }
+.prose-chef li { margin: 0.15rem 0; }
+.prose-chef strong { font-weight: 600; }
+.prose-chef h1, .prose-chef h2, .prose-chef h3 { font-weight: 600; margin: 0.6rem 0 0.3rem; font-size: 1rem; }
+.prose-chef code { font-size: 0.85em; padding: 0.1rem 0.3rem; border-radius: 0.3rem; background: var(--surface-2); }
