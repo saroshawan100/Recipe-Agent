@@ -4,11 +4,12 @@ import { z } from "zod";
 import { dedupe } from "../lib/dedupe.js";
 import { HttpError } from "../lib/httpError.js";
 import { streamCompletion } from "../lib/sse.js";
+import { toChatCompletionMessages } from "../lib/chatMessages.js";
 import { aiLimiter } from "../middleware/rateLimit.js";
-import { AskRequest, ChatMessage, CheckinRequest } from "../schemas/coaching.js";
+import { AskMessages, AskRequest, ChatMessage, CheckinRequest } from "../schemas/coaching.js";
 import { RecipeCard, RecipeDetails, SuggestRequest } from "../schemas/recipe.js";
 import { generateCheckin, generateCoachingScript } from "../services/coachService.js";
-import { generateRecipeImage } from "../services/imageService.js";
+import { generateRecipeImage, getOrCreateStepReferenceImage } from "../services/imageService.js";
 import { generateDetails, suggestRecipes } from "../services/openaiService.js";
 import { askSystemPrompt, chatSystemPrompt } from "../services/prompts.js";
 
@@ -45,6 +46,19 @@ aiRouter.post("/image", async (req, res) => {
   res.json({ imageUrl });
 });
 
+aiRouter.post("/step-image", async (req, res) => {
+  const { key, title, stepIndex, step } = z
+    .object({
+      key: z.string().regex(/^[A-Za-z0-9_-]{8,100}$/),
+      title: z.string().min(1).max(200),
+      stepIndex: z.number().int().min(0).max(99),
+      step: z.object({ title: z.string().min(1).max(200), instruction: z.string().min(1).max(2000) }),
+    })
+    .parse(req.body);
+  const imageUrl = await getOrCreateStepReferenceImage(key, stepIndex, title, step);
+  res.json({ imageUrl });
+});
+
 aiRouter.post("/coach", async (req, res) => {
   const { title, details, stepIndex } = RecipeRef.extend({ stepIndex: z.number().int().min(0) }).parse(req.body);
   checkStep(details, stepIndex);
@@ -60,13 +74,17 @@ aiRouter.post("/checkin", async (req, res) => {
 });
 
 aiRouter.post("/ask", async (req, res) => {
-  const { title, details, stepIndex, elapsedSeconds, messages } = AskRequest.omit({ recipeId: true })
-    .extend(RecipeRef.shape)
+  const { title, details, stepIndex, elapsedSeconds, messages } = z.object({
+    ...RecipeRef.shape,
+    stepIndex: z.number().int().min(0),
+    elapsedSeconds: z.number().min(0).max(86_400).default(0),
+    messages: AskMessages,
+  })
     .parse(req.body);
   checkStep(details, stepIndex);
   await streamCompletion(res, [
     { role: "system", content: askSystemPrompt(title, details, stepIndex, elapsedSeconds) },
-    ...messages,
+    ...toChatCompletionMessages(messages),
   ]);
 });
 

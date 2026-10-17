@@ -36,6 +36,7 @@ export interface CheckinInput {
   answer: "notYet" | "problem";
   issue?: string;
   note?: string;
+  image?: string;
   elapsedSeconds: number;
 }
 
@@ -78,6 +79,7 @@ export interface Backend {
   clearList(): Promise<ListResponse>;
 
   coachScript(recipeId: string, step: number): Promise<CoachingScript>;
+  stepReferenceImage(recipeId: string, step: number): Promise<{ imageUrl: string }>;
   startSession(recipeId: string): Promise<CookSession>;
   restartSession(sessionId: string): Promise<CookSession>;
   updateSession(sessionId: string, patch: SessionPatch): Promise<CookSession>;

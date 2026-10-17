@@ -23,7 +23,7 @@ app.set("trust proxy", 1);
 // The SPA loads Google Fonts, TheMealDB ingredient images and an inline theme script, so the default CSP is disabled.
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: config.isProduction ? false : true }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 fs.mkdirSync(config.generatedDir, { recursive: true });
 app.use("/generated", express.static(config.generatedDir, { maxAge: "30d", immutable: true }));

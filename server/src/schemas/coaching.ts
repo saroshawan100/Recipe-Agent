@@ -49,6 +49,7 @@ export const CheckinRequest = z.object({
   answer: z.enum(["notYet", "problem"]),
   issue: z.string().max(80).optional(),
   note: z.string().max(500).optional(),
+  image: z.string().max(2_100_000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/).optional(),
   elapsedSeconds: z.number().min(0).max(86_400),
 });
 
@@ -57,11 +58,21 @@ export const ChatMessage = z.object({
   content: z.string().max(4000),
 });
 
+const AskMessage = ChatMessage.extend({
+  image: z.string().max(2_100_000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/).optional(),
+});
+
+export const AskMessages = z.array(AskMessage).min(1).max(20).superRefine((messages, ctx) => {
+  if (messages.filter((message) => message.image).length > 1) {
+    ctx.addIssue({ code: "custom", message: "Only one photo can be attached per question." });
+  }
+});
+
 export const AskRequest = z.object({
   recipeId: z.string(),
   stepIndex: z.number().int().min(0),
   elapsedSeconds: z.number().min(0).max(86_400).default(0),
-  messages: z.array(ChatMessage).min(1).max(20),
+  messages: AskMessages,
 });
 
 export const SessionPatch = z.object({

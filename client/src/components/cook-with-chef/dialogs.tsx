@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Bookmark, ChefHat, Clock, Flame, Heart, Home, RotateCcw, Snowflake } from "lucide-react";
+import { Bookmark, ChefHat, Clock, Flame, Heart, Home, ImageIcon, ImagePlus, RotateCcw, Snowflake, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getBackend } from "@/api/backend";
+import { useStepReferenceImage } from "@/api/hooks";
 import type { ChatMessage, RecipeDto } from "@/api/types";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { MacroBars } from "@/components/recipe/RecipeCard";
@@ -11,6 +12,8 @@ import { Modal, Sheet } from "@/components/ui/overlays";
 import { Card } from "@/components/ui/primitives";
 import { useStreamingChat, type ChatStreamFn } from "@/hooks/useStreamingChat";
 import { cn, stripMarkdown } from "@/lib/utils";
+import { compressFoodPhoto } from "@/lib/compressFoodPhoto";
+import { toast } from "sonner";
 import { PROBLEM_OPTIONS } from "./meta";
 
 export function ProblemDialog({
@@ -21,16 +24,20 @@ export function ProblemDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (issue: string | undefined, note: string | undefined) => void;
+  onSubmit: (issue: string | undefined, note: string | undefined, image?: string) => void;
   pending: boolean;
 }) {
   const [issue, setIssue] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [image, setImage] = useState<string | null>(null);
+  const [imageName, setImageName] = useState("");
 
   useEffect(() => {
     if (open) {
       setIssue(null);
       setNote("");
+      setImage(null);
+      setImageName("");
     }
   }, [open]);
 
@@ -60,9 +67,42 @@ export function ProblemDialog({
         placeholder="Or describe it: 'the onions are turning black on the edges'"
         className="mt-4 w-full resize-none rounded-2xl border border-line bg-bg px-4 py-3 text-sm outline-none focus:border-saffron-500"
       />
-      <Button size="lg" className="mt-4 w-full" disabled={!issue && !note.trim()} loading={pending} onClick={() => onSubmit(label, note.trim() || undefined)}>
+      <div className="mt-3 flex items-center gap-3">
+        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-sm font-medium hover:border-saffron-500/60">
+          <ImagePlus className="h-4 w-4" /> {image ? "Change photo" : "Add a photo"}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            aria-label="Take or choose a food photo"
+            onChange={async (event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (!file) return;
+              try {
+                setImage(await compressFoodPhoto(file));
+                setImageName(file.name);
+              } catch (error) {
+                toast.error("Couldn't use that photo", { description: (error as Error).message });
+              }
+            }}
+          />
+        </label>
+        {image && (
+          <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+            <img src={image} alt="Selected food photo" className="h-11 w-11 rounded-lg object-cover" />
+            <span className="max-w-32 truncate">{imageName}</span>
+            <button type="button" className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg hover:bg-surface-2" onClick={() => { setImage(null); setImageName(""); }} aria-label="Remove photo">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <Button size="lg" className="mt-4 w-full" disabled={!issue && !note.trim() && !image} loading={pending} onClick={() => onSubmit(label, note.trim() || undefined, image ?? undefined)}>
         <ChefHat className="h-5 w-5" /> Help me fix it
       </Button>
+      <p className="mt-3 text-center text-xs text-muted">Photos are resized and sent to the chef for this answer; the app doesn’t save them.</p>
       <p className="mt-3 text-center text-xs text-muted">If there's a grease fire: cover it with a lid and turn off the heat. Never use water.</p>
     </Modal>
   );
@@ -86,17 +126,22 @@ export function AskStepSheet({
   speak: (text: string) => void;
 }) {
   const [messages, setMessagesState] = useState<ChatMessage[]>([]);
+  const stepReference = useStepReferenceImage();
   const setMessages = useCallback((updater: (prev: ChatMessage[]) => ChatMessage[]) => setMessagesState(updater), []);
 
   useEffect(() => setMessagesState([]), [stepIndex]);
+  useEffect(() => stepReference.reset(), [stepIndex, stepReference.reset]);
 
   const stream = useCallback<ChatStreamFn>(
-    async (history, onDelta, signal) =>
-      (await getBackend()).askStream(
-        { recipeId, stepIndex, elapsedSeconds: Math.round(getElapsed()), messages: history },
+    async (history, onDelta, signal) => {
+      const latestImageIndex = history.reduce((latest, message, index) => (message.image ? index : latest), -1);
+      const messages = history.map((message, index) => (index === latestImageIndex ? message : { ...message, image: undefined }));
+      return (await getBackend()).askStream(
+        { recipeId, stepIndex, elapsedSeconds: Math.round(getElapsed()), messages },
         onDelta,
         signal,
-      ),
+      );
+    },
     [recipeId, stepIndex, getElapsed],
   );
   const onComplete = useCallback((text: string) => speak(stripMarkdown(text)), [speak]);
@@ -104,6 +149,29 @@ export function AskStepSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Ask the chef" description={`About step ${stepIndex + 1}: ${stepTitle}`}>
+      <section className="mx-4 mt-4 rounded-2xl border border-line bg-surface-2 p-3" aria-label="Visual step example">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-sm font-semibold"><ImageIcon className="h-4 w-4 text-herb-500" /> See this step</div>
+            <p className="mt-0.5 text-xs text-muted">Generate a visual reference for “{stepTitle}”.</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            loading={stepReference.isPending}
+            onClick={() => stepReference.mutate({ recipeId, stepIndex }, { onError: (error) => toast.error("Couldn't generate a step example", { description: error.message }) })}
+          >
+            <ImagePlus className="h-4 w-4" /> {stepReference.data ? "Regenerate" : "Show example"}
+          </Button>
+        </div>
+        {stepReference.data?.imageUrl && (
+          <figure className="mt-3">
+            <img src={stepReference.data.imageUrl} alt={`AI-generated visual reference for step ${stepIndex + 1}: ${stepTitle}`} className="max-h-64 w-full rounded-xl object-cover" />
+            <figcaption className="mt-2 text-xs text-muted">AI-generated visual reference. Follow the written instructions and food-safety cues; the actual result may vary.</figcaption>
+          </figure>
+        )}
+      </section>
       <ChatPanel
         messages={messages}
         streaming={streaming}
@@ -113,6 +181,7 @@ export function AskStepSheet({
         placeholder="Ask about this step..."
         emptyTitle="I'm right here"
         emptyText="Ask anything about what you're doing right now. The chef knows exactly where you are."
+        allowImage
       />
     </Sheet>
   );

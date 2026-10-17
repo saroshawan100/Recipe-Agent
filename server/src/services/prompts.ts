@@ -151,7 +151,7 @@ export function checkinPrompt(
   title: string,
   details: RecipeDetails,
   stepIndex: number,
-  input: { answer: "notYet" | "problem"; issue?: string; note?: string; elapsedSeconds: number; cueText?: string },
+  input: { answer: "notYet" | "problem"; issue?: string; note?: string; image?: string; elapsedSeconds: number; cueText?: string },
 ) {
   const step = details.steps[stepIndex];
   const system = `${CHEF_PERSONA}
@@ -171,7 +171,7 @@ Cook's answer: ${input.answer === "notYet" ? "It's not ready yet." : "Something 
 ${input.issue ? `Problem: ${input.issue}` : ""}
 ${input.note ? `In their words: "${input.note}"` : ""}`;
 
-  return { system, user };
+  return { system, user: input.image ? `${user}\nThe cook attached a photo of the food. Inspect its visible color, texture, and cooking state, and use it with their description to recommend a safe, specific next action.` : user, image: input.image };
 }
 
 export function askSystemPrompt(title: string, details: RecipeDetails, stepIndex: number, elapsedSeconds: number): string {

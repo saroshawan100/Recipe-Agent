@@ -186,4 +186,6 @@ export interface CookSession {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  /** Optional compressed JPEG data URL for a user photo in the in-step chef chat. */
+  image?: string;
 }

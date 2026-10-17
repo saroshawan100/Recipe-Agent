@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ChefHat, SendHorizontal, Square } from "lucide-react";
+import { ChefHat, ImagePlus, SendHorizontal, Square, X } from "lucide-react";
 import Markdown from "react-markdown";
+import { toast } from "sonner";
 import type { ChatMessage } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { compressFoodPhoto } from "@/lib/compressFoodPhoto";
 import { cn } from "@/lib/utils";
 
 export function ChatPanel({
@@ -14,18 +16,23 @@ export function ChatPanel({
   placeholder = "Ask the chef anything...",
   emptyTitle,
   emptyText,
+  allowImage = false,
 }: {
   messages: ChatMessage[];
   streaming: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, image?: string) => void;
   onStop: () => void;
   quickPrompts: string[];
   placeholder?: string;
   emptyTitle: string;
   emptyText: string;
+  allowImage?: boolean;
 }) {
   const [input, setInput] = useState("");
+  const [image, setImage] = useState<string | null>(null);
+  const [imageName, setImageName] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -34,9 +41,11 @@ export function ChatPanel({
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text || streaming) return;
-    onSend(text);
+    if ((!text && !image) || streaming) return;
+    onSend(text || "Please take a look at this photo.", image ?? undefined);
     setInput("");
+    setImage(null);
+    setImageName("");
   };
 
   return (
@@ -75,7 +84,10 @@ export function ChatPanel({
                     </span>
                   )
                 ) : (
-                  m.content
+                  <>
+                    {m.image && <img src={m.image} alt="Food photo attached to this question" className="mb-2 max-h-52 max-w-full rounded-xl object-contain" />}
+                    {m.content}
+                  </>
                 )}
               </div>
             </div>
@@ -98,6 +110,32 @@ export function ChatPanel({
           </div>
         )}
         <form onSubmit={submit} className="flex items-end gap-2">
+          {allowImage && (
+            <>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                aria-label="Take or choose a food photo"
+                onChange={async (event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  try {
+                    setImage(await compressFoodPhoto(file));
+                    setImageName(file.name);
+                  } catch (error) {
+                    toast.error("Couldn't use that photo", { description: (error as Error).message });
+                  }
+                }}
+              />
+              <Button type="button" size="icon" variant="secondary" onClick={() => imageInputRef.current?.click()} aria-label={image ? `Change photo (${imageName})` : "Add a photo"}>
+                <ImagePlus className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -113,11 +151,21 @@ export function ChatPanel({
               <Square className="h-4 w-4 fill-current" />
             </Button>
           ) : (
-            <Button type="submit" size="icon" disabled={!input.trim()} aria-label="Send">
+            <Button type="submit" size="icon" disabled={!input.trim() && !image} aria-label="Send">
               <SendHorizontal className="h-4 w-4" />
             </Button>
           )}
         </form>
+        {image && (
+          <div className="mt-2 flex items-center gap-2 rounded-xl bg-surface-2 p-2 text-xs text-muted">
+            <img src={image} alt="Selected food photo" className="h-12 w-12 rounded-lg object-cover" />
+            <span className="min-w-0 flex-1 truncate">{imageName}</span>
+            <button type="button" className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg hover:bg-surface" onClick={() => { setImage(null); setImageName(""); }} aria-label="Remove photo">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {allowImage && <p className="mt-2 text-center text-[11px] text-muted">Photos are resized and sent to the chef for this answer; the app doesn’t save them.</p>}
       </div>
     </div>
   );

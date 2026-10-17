@@ -26,8 +26,8 @@ export function useStreamingChat({
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const send = useCallback(
-    async (text: string) => {
-      const userMessage: ChatMessage = { role: "user", content: text };
+    async (text: string, image?: string) => {
+      const userMessage: ChatMessage = { role: "user", content: text, image };
       const history = [...messages, userMessage].slice(-20);
       setMessages((prev) => [...prev, userMessage, { role: "assistant", content: "" }]);
       setStreaming(true);

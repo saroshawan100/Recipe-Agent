@@ -26,6 +26,7 @@ export const remoteBackend: Backend = {
   clearList: () => api<ListResponse>("/shopping-list", { method: "DELETE" }),
 
   coachScript: (recipeId, step) => api<CoachingScript>(`/cook/${recipeId}/steps/${step}/coach`, { method: "POST" }),
+  stepReferenceImage: (recipeId, step) => api<{ imageUrl: string }>(`/cook/${recipeId}/steps/${step}/image`, { method: "POST" }),
   startSession: (recipeId) => api<CookSession>("/cook/sessions", { body: { recipeId } }),
   restartSession: (id) => api<CookSession>(`/cook/sessions/${id}/restart`, { method: "POST" }),
   updateSession: (id, patch) => api<CookSession>(`/cook/sessions/${id}`, { method: "PATCH", body: patch }),

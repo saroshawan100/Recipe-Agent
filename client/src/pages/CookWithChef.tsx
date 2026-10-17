@@ -294,7 +294,7 @@ export function CookWithChef() {
     setPendingCheck(null);
   };
 
-  const submitProblem = (issue: string | undefined, note: string | undefined) => {
+  const submitProblem = (issue: string | undefined, note: string | undefined, image?: string) => {
     checkin.mutate(
       {
         recipeId: id,
@@ -304,6 +304,7 @@ export function CookWithChef() {
         answer: "problem",
         issue,
         note,
+        image,
         elapsedSeconds: Math.round(clock.read()),
       },
       {

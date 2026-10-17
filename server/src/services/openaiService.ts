@@ -11,13 +11,21 @@ export const openai = new OpenAI({ apiKey: config.openaiApiKey, maxRetries: 2, t
 export async function structured<T extends z.ZodTypeAny>(
   schema: T,
   name: string,
-  prompt: { system: string; user: string },
+  prompt: { system: string; user: string; image?: string },
 ): Promise<z.infer<T>> {
   const completion = await openai.chat.completions.parse({
     model: config.model,
     messages: [
       { role: "system", content: prompt.system },
-      { role: "user", content: prompt.user },
+      {
+        role: "user",
+        content: prompt.image
+          ? [
+              { type: "text", text: prompt.user },
+              { type: "image_url", image_url: { url: prompt.image, detail: "high" } },
+            ]
+          : prompt.user,
+      },
     ],
     response_format: zodResponseFormat(schema, name),
   });

@@ -7,7 +7,7 @@ An intelligent cooking assistant. Tell it what's in your kitchen (tap ingredient
 
 Each recipe comes with beginner-friendly steps, a glossary for cooking terms, macros and nutrition, substitutions, food-safety notes, an AI-generated photo, and a have-vs-need ingredient list that feeds a shopping list grouped by store aisle.
 
-**Cook with the Chef** is a live, hands-free coaching mode. It walks you through each step minute by minute ("flip the chicken now", "in 2:00 we'll check for golden edges"), asks you to confirm doneness cues, adjusts the timeline when something isn't ready, and fixes problems on the spot ("the pan is smoking"). It speaks out loud, plays chimes, and keeps your screen awake.
+**Cook with the Chef** is a live, hands-free coaching mode. It walks you through each step minute by minute ("flip the chicken now", "in 2:00 we'll check for golden edges"), asks you to confirm doneness cues, adjusts the timeline when something isn't ready, and fixes problems on the spot ("the pan is smoking"). Ask the Chef can generate an on-demand visual reference for the current step, and you can attach a food photo to a question or problem report for visual advice. Input photos are resized in the browser, sent to the AI for that answer, and not saved by the app. It speaks out loud, plays chimes, and keeps your screen awake.
 
 ## Stack
 

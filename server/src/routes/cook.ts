@@ -5,11 +5,13 @@ import { dedupe } from "../lib/dedupe.js";
 import { HttpError, notFound } from "../lib/httpError.js";
 import { findRecipe, requireDetails } from "../lib/recipes.js";
 import { streamCompletion } from "../lib/sse.js";
+import { toChatCompletionMessages } from "../lib/chatMessages.js";
 import { aiLimiter } from "../middleware/rateLimit.js";
 import { CookSession, toSessionDto } from "../models/CookSession.js";
 import { Recipe } from "../models/Recipe.js";
 import { AskRequest, CheckinRequest, SessionPatch, type CoachingScript } from "../schemas/coaching.js";
 import { generateCheckin, generateCoachingScript } from "../services/coachService.js";
+import { getOrCreateStepReferenceImage } from "../services/imageService.js";
 import { askSystemPrompt } from "../services/prompts.js";
 
 export const cookRouter = Router();
@@ -64,6 +66,21 @@ cookRouter.post("/:recipeId/steps/:index/coach", aiLimiter, async (req, res) => 
   res.json(script);
 });
 
+cookRouter.post("/:recipeId/steps/:index/image", aiLimiter, async (req, res) => {
+  const recipe = await findRecipe(req.clientId, String(req.params.recipeId));
+  const details = await requireDetails(recipe);
+  const index = Number(req.params.index);
+  if (!Number.isInteger(index) || index < 0 || index >= details.steps.length) {
+    throw new HttpError(400, "That step doesn't exist in this recipe");
+  }
+  const step = details.steps[index];
+  const imageUrl = await getOrCreateStepReferenceImage(recipe.id, index, recipe.card.title, {
+    title: step.title,
+    instruction: step.instruction,
+  });
+  res.json({ imageUrl });
+});
+
 cookRouter.post("/checkin", aiLimiter, async (req, res) => {
   const input = CheckinRequest.parse(req.body);
   const recipe = await findRecipe(req.clientId, input.recipeId);
@@ -103,6 +120,6 @@ cookRouter.post("/ask", aiLimiter, async (req, res) => {
   const stepIndex = Math.min(input.stepIndex, details.steps.length - 1);
   await streamCompletion(res, [
     { role: "system", content: askSystemPrompt(recipe.card.title, details, stepIndex, input.elapsedSeconds) },
-    ...input.messages,
+    ...toChatCompletionMessages(input.messages),
   ]);
 });

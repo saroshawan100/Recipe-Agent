@@ -154,3 +154,10 @@ export function useCheckin() {
     mutationFn: async (body: CheckinInput) => (await getBackend()).checkin(body),
   });
 }
+
+export function useStepReferenceImage() {
+  return useMutation({
+    mutationFn: async ({ recipeId, stepIndex }: { recipeId: string; stepIndex: number }) =>
+      (await getBackend()).stepReferenceImage(recipeId, stepIndex),
+  });
+}

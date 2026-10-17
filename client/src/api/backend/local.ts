@@ -224,6 +224,19 @@ export const localBackend: Backend = {
       return script;
     }),
 
+  async stepReferenceImage(recipeId, stepIndex) {
+    const recipe = await findRecipe(recipeId);
+    const details = requireDetails(recipe);
+    const step = details.steps[stepIndex];
+    if (!step) throw new ApiError(400, "That step doesn't exist in this recipe");
+    return ai<{ imageUrl: string }>("/step-image", {
+      key: `${recipeId}-step-${stepIndex}`,
+      title: recipe.card.title,
+      stepIndex,
+      step: { title: step.title, instruction: step.instruction },
+    });
+  },
+
   async startSession(recipeId) {
     await findRecipe(recipeId);
     const sessions = await idb.getAll<LocalSession>("sessions");
@@ -272,7 +285,7 @@ export const localBackend: Backend = {
     return toSessionDto(updated);
   },
 
-  async checkin({ recipeId, stepIndex, sessionId, cueId, answer, issue, note, elapsedSeconds }) {
+  async checkin({ recipeId, stepIndex, sessionId, cueId, answer, issue, note, image, elapsedSeconds }) {
     const recipe = await findRecipe(recipeId);
     const cueText = cueId ? recipe.coaching?.[String(stepIndex)]?.cues.find((c) => c.id === cueId)?.say : undefined;
     const result = await ai<CheckinResponse>("/checkin", {
@@ -282,6 +295,7 @@ export const localBackend: Backend = {
       answer,
       issue,
       note,
+      image,
       elapsedSeconds,
       cueText,
     });
