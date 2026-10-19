@@ -6,6 +6,7 @@ import { CATALOG, CATEGORIES, imageUrl, searchCatalog, type CatalogItem, type Ca
 import { cn } from "@/lib/utils";
 import { ingredientKey, useKitchenStore, type SelectedIngredient } from "@/store/useKitchenStore";
 import { IngredientImage } from "./IngredientImage";
+import { PhotoScan } from "./PhotoScan";
 
 export function toSelected(item: CatalogItem): SelectedIngredient {
   return { key: ingredientKey(item.name), name: item.name, category: item.category, emoji: item.emoji, image: imageUrl(item.img) };
@@ -15,6 +16,14 @@ export function customIngredient(name: string): SelectedIngredient {
   const clean = name.trim().replace(/\s+/g, " ");
   const pretty = clean.charAt(0).toUpperCase() + clean.slice(1);
   return { key: ingredientKey(clean), name: pretty, category: "custom", emoji: "🥄", image: null };
+}
+
+/** Maps free text to a catalog ingredient (so it gets a photo) when it's a close match, otherwise a custom one. */
+export function matchIngredient(name: string): SelectedIngredient {
+  const part = name.trim();
+  const match = CATALOG.find((i) => i.name.toLowerCase() === part.toLowerCase()) ?? searchCatalog(part, 1)[0];
+  const useMatch = match && match.name.toLowerCase().includes(part.toLowerCase()) && part.length >= 3;
+  return useMatch ? toSelected(match) : customIngredient(part);
 }
 
 export function IngredientPicker() {
@@ -41,11 +50,7 @@ export function IngredientPicker() {
       .split(/[,\n;]/)
       .map((p) => p.trim())
       .filter(Boolean);
-    for (const part of parts) {
-      const match = CATALOG.find((i) => i.name.toLowerCase() === part.toLowerCase()) ?? searchCatalog(part, 1)[0];
-      const useMatch = match && match.name.toLowerCase().includes(part.toLowerCase()) && part.length >= 3;
-      add(useMatch ? toSelected(match) : customIngredient(part));
-    }
+    for (const part of parts) add(matchIngredient(part));
     setQuery("");
   };
 
@@ -65,25 +70,28 @@ export function IngredientPicker() {
   return (
     <Card className="p-4 sm:p-6">
       <div className="flex flex-col gap-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Search or type anything: 'chicken thighs, leftover rice, kimchi'"
-            className="h-14 w-full rounded-2xl border border-line bg-surface pr-12 pl-12 text-base shadow-inner shadow-black/5 transition-colors outline-none placeholder:text-muted/70 focus:border-saffron-500 focus:ring-4 focus:ring-saffron-500/15"
-            aria-label="Search ingredients"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="absolute top-1/2 right-3 grid h-8 w-8 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface-2"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-muted" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search or type anything: 'chicken thighs, leftover rice, kimchi'"
+              className="h-14 w-full rounded-2xl border border-line bg-surface pr-12 pl-12 text-base shadow-inner shadow-black/5 transition-colors outline-none placeholder:text-muted/70 focus:border-saffron-500 focus:ring-4 focus:ring-saffron-500/15"
+              aria-label="Search ingredients"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-3 grid h-8 w-8 -translate-y-1/2 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface-2"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <PhotoScan />
         </div>
 
         {!searching && (

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Clock, Flame, ShoppingCart, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronDown, Clock, CookingPot, Flame, Globe, Leaf, ShoppingCart, SlidersHorizontal, Users } from "lucide-react";
 import type { Preferences } from "@/api/types";
 import { Card, Chip, Segmented, SectionLabel, Slider, Stepper } from "@/components/ui/primitives";
 import { ALLERGIES, CUISINES, DIETS, EQUIPMENT, STAPLE_OPTIONS } from "@/data/ingredients";
@@ -16,11 +16,8 @@ export function PreferencesPanel() {
   const setPrefs = useKitchenStore((s) => s.setPrefs);
   const staples = useKitchenStore((s) => s.staples);
   const setStaples = useKitchenStore((s) => s.setStaples);
-  const [more, setMore] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
   const [customAllergy, setCustomAllergy] = useState("");
-
-  const activeExtras =
-    prefs.diets.length + prefs.allergies.length + prefs.cuisines.length + prefs.equipment.length + (prefs.calorieTarget ? 1 : 0) + (prefs.proteinTarget ? 1 : 0);
 
   return (
     <Card className="p-5">
@@ -86,97 +83,126 @@ export function PreferencesPanel() {
           </div>
         </div>
 
-        <button
-          onClick={() => setMore((m) => !m)}
-          className="flex w-full cursor-pointer items-center justify-between rounded-xl bg-surface-2/70 px-4 py-3 text-sm font-semibold transition-colors hover:bg-surface-2"
-        >
-          <span>
-            Diet, allergies, cuisine & more
-            {activeExtras > 0 && <span className="ml-2 rounded-full bg-saffron-500 px-2 py-0.5 text-xs text-stone-950">{activeExtras}</span>}
-          </span>
-          <ChevronDown className={cn("h-4 w-4 transition-transform", more && "rotate-180")} />
-        </button>
+        <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
+          <PrefSection
+            id="diet"
+            open={open}
+            onToggle={setOpen}
+            icon={<Leaf className="h-4 w-4 text-herb-500" />}
+            title="Diet & allergies"
+            summary={[...prefs.diets, ...prefs.allergies.map((a) => `no ${a.toLowerCase()}`)]}
+          >
+            <ChipGroup label="Diet">
+              {DIETS.map((d) => (
+                <Chip key={d} active={prefs.diets.includes(d)} onClick={() => setPrefs({ diets: toggleIn(prefs.diets, d) })} tone="herb">
+                  {d}
+                </Chip>
+              ))}
+            </ChipGroup>
 
-        <AnimatePresence initial={false}>
-          {more && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-5 overflow-hidden">
-              <ChipGroup label="Diet">
-                {DIETS.map((d) => (
-                  <Chip key={d} active={prefs.diets.includes(d)} onClick={() => setPrefs({ diets: toggleIn(prefs.diets, d) })} tone="herb">
-                    {d}
-                  </Chip>
-                ))}
-              </ChipGroup>
+            <ChipGroup label="Allergies (strictly avoided)">
+              {[...ALLERGIES, ...prefs.allergies.filter((a) => !ALLERGIES.includes(a))].map((a) => (
+                <Chip key={a} active={prefs.allergies.includes(a)} onClick={() => setPrefs({ allergies: toggleIn(prefs.allergies, a) })} tone="tomato">
+                  {a}
+                </Chip>
+              ))}
+            </ChipGroup>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = customAllergy.trim();
+                if (v && !prefs.allergies.includes(v)) setPrefs({ allergies: [...prefs.allergies, v] });
+                setCustomAllergy("");
+              }}
+              className="flex gap-2"
+            >
+              <input
+                value={customAllergy}
+                onChange={(e) => setCustomAllergy(e.target.value)}
+                placeholder="Add another allergy..."
+                aria-label="Add another allergy"
+                className="h-9 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-sm outline-none placeholder:text-muted/70 focus:border-tomato-500"
+              />
+              <button
+                type="submit"
+                disabled={!customAllergy.trim()}
+                className="h-9 cursor-pointer rounded-xl bg-surface-2 px-3 text-sm font-medium transition-colors hover:bg-tomato-500/15 disabled:cursor-default disabled:opacity-40"
+              >
+                Add
+              </button>
+            </form>
+          </PrefSection>
 
-              <ChipGroup label="Allergies (strictly avoided)">
-                {[...ALLERGIES, ...prefs.allergies.filter((a) => !ALLERGIES.includes(a))].map((a) => (
-                  <Chip key={a} active={prefs.allergies.includes(a)} onClick={() => setPrefs({ allergies: toggleIn(prefs.allergies, a) })} tone="tomato">
-                    {a}
-                  </Chip>
-                ))}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const v = customAllergy.trim();
-                    if (v && !prefs.allergies.includes(v)) setPrefs({ allergies: [...prefs.allergies, v] });
-                    setCustomAllergy("");
-                  }}
-                >
-                  <input
-                    value={customAllergy}
-                    onChange={(e) => setCustomAllergy(e.target.value)}
-                    placeholder="+ other"
-                    className="h-[34px] w-24 rounded-full border border-dashed border-line bg-transparent px-3 text-sm outline-none focus:w-36 focus:border-tomato-500"
-                  />
-                </form>
-              </ChipGroup>
+          <PrefSection
+            id="nutrition"
+            open={open}
+            onToggle={setOpen}
+            icon={<Flame className="h-4 w-4 text-tomato-500" />}
+            title="Nutrition targets"
+            summary={[prefs.calorieTarget ? `${prefs.calorieTarget} cal` : "", prefs.proteinTarget ? `${prefs.proteinTarget}g+ protein` : ""].filter(Boolean)}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                label="Calories / serving"
+                value={prefs.calorieTarget}
+                onChange={(calorieTarget) => setPrefs({ calorieTarget })}
+                placeholder="e.g. 600"
+                min={100}
+                max={3000}
+              />
+              <NumberField
+                label="Min protein (g)"
+                value={prefs.proteinTarget}
+                onChange={(proteinTarget) => setPrefs({ proteinTarget })}
+                placeholder="e.g. 40"
+                min={5}
+                max={300}
+              />
+            </div>
+          </PrefSection>
 
-              <ChipGroup label="Cuisine">
-                {CUISINES.map((c) => (
-                  <Chip key={c} active={prefs.cuisines.includes(c)} onClick={() => setPrefs({ cuisines: toggleIn(prefs.cuisines, c) })}>
-                    {c}
-                  </Chip>
-                ))}
-              </ChipGroup>
+          <PrefSection
+            id="cuisine"
+            open={open}
+            onToggle={setOpen}
+            icon={<Globe className="h-4 w-4 text-saffron-500" />}
+            title="Cuisine"
+            summary={prefs.cuisines}
+          >
+            <div className="flex flex-wrap gap-2">
+              {CUISINES.map((c) => (
+                <Chip key={c} active={prefs.cuisines.includes(c)} onClick={() => setPrefs({ cuisines: toggleIn(prefs.cuisines, c) })}>
+                  {c}
+                </Chip>
+              ))}
+            </div>
+          </PrefSection>
 
-              <ChipGroup label="Equipment I have (leave empty for a standard kitchen)">
-                {EQUIPMENT.map((eq) => (
-                  <Chip key={eq} active={prefs.equipment.includes(eq)} onClick={() => setPrefs({ equipment: toggleIn(prefs.equipment, eq) })}>
-                    {eq}
-                  </Chip>
-                ))}
-              </ChipGroup>
-
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField
-                  label="Calories / serving"
-                  icon={<Flame className="h-3.5 w-3.5" />}
-                  value={prefs.calorieTarget}
-                  onChange={(calorieTarget) => setPrefs({ calorieTarget })}
-                  placeholder="e.g. 600"
-                  min={100}
-                  max={3000}
-                />
-                <NumberField
-                  label="Min protein (g)"
-                  value={prefs.proteinTarget}
-                  onChange={(proteinTarget) => setPrefs({ proteinTarget })}
-                  placeholder="e.g. 40"
-                  min={5}
-                  max={300}
-                />
-              </div>
-
-              <ChipGroup label="Basics I always have">
-                {STAPLE_OPTIONS.map((s) => (
-                  <Chip key={s} active={staples.includes(s)} onClick={() => setStaples(toggleIn(staples, s))} tone="herb" className="capitalize">
-                    {s}
-                  </Chip>
-                ))}
-              </ChipGroup>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <PrefSection
+            id="kitchen"
+            open={open}
+            onToggle={setOpen}
+            icon={<CookingPot className="h-4 w-4 text-muted" />}
+            title="My kitchen"
+            summary={prefs.equipment}
+            emptySummary="Standard kitchen"
+          >
+            <ChipGroup label="Equipment (leave empty for a standard kitchen)">
+              {EQUIPMENT.map((eq) => (
+                <Chip key={eq} active={prefs.equipment.includes(eq)} onClick={() => setPrefs({ equipment: toggleIn(prefs.equipment, eq) })}>
+                  {eq}
+                </Chip>
+              ))}
+            </ChipGroup>
+            <ChipGroup label="Basics I always have">
+              {STAPLE_OPTIONS.map((s) => (
+                <Chip key={s} active={staples.includes(s)} onClick={() => setStaples(toggleIn(staples, s))} tone="herb" className="capitalize">
+                  {s}
+                </Chip>
+              ))}
+            </ChipGroup>
+          </PrefSection>
+        </div>
 
         <div>
           <SectionLabel>Anything else?</SectionLabel>
@@ -190,6 +216,55 @@ export function PreferencesPanel() {
         </div>
       </div>
     </Card>
+  );
+}
+
+function PrefSection({
+  id,
+  open,
+  onToggle,
+  icon,
+  title,
+  summary,
+  emptySummary = "Any",
+  children,
+}: {
+  id: string;
+  open: string | null;
+  onToggle: (id: string | null) => void;
+  icon: ReactNode;
+  title: string;
+  summary: string[];
+  emptySummary?: string;
+  children: ReactNode;
+}) {
+  const isOpen = open === id;
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => onToggle(isOpen ? null : id)}
+        aria-expanded={isOpen}
+        className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/60"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">{title}</span>
+          <span className={cn("block truncate text-xs", summary.length ? "text-fg/80" : "text-muted")}>
+            {summary.length ? summary.join(", ") : emptySummary}
+          </span>
+        </span>
+        {summary.length > 0 && <span className="rounded-full bg-saffron-500 px-2 py-0.5 text-xs font-semibold text-stone-950">{summary.length}</span>}
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted transition-transform", isOpen && "rotate-180")} />
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="space-y-4 bg-surface-2/30 px-4 pt-1 pb-4">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

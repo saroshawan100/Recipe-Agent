@@ -48,6 +48,13 @@ export function useRecipeImage(id: string | undefined, enabled: boolean) {
 
 // ---------- Pantry ----------
 
+export function useScanPhoto() {
+  return useMutation({
+    mutationFn: async ({ image, knownNames }: { image: string; knownNames: string[] }) =>
+      (await getBackend()).scanPhoto(image, knownNames),
+  });
+}
+
 export function usePantry() {
   return useQuery({
     queryKey: ["pantry"],

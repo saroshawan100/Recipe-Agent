@@ -129,3 +129,29 @@ export const SuggestRequest = z.object({
   preferences: Preferences.default({}),
 });
 export type SuggestRequest = z.infer<typeof SuggestRequest>;
+
+// ---------- Pantry photo scan ----------
+
+export const INGREDIENT_CATEGORIES = ["proteins", "vegetables", "fruits", "grains", "dairy", "spices", "sauces", "pantry"] as const;
+
+export const ScanResult = z.object({
+  items: z.array(
+    z.object({
+      name: z.string().describe("Common ingredient name, singular or plural as usually written, e.g. 'Eggs', 'Cheddar Cheese'"),
+      category: z.enum(INGREDIENT_CATEGORIES),
+      quantity: z.string().nullable().describe("Rough visible amount, e.g. '6 eggs', 'half a bottle'; null if unclear"),
+      confidence: z.enum(["high", "medium", "low"]).describe("How sure you are of the identification"),
+      useSoon: z.boolean().describe("true only if it visibly looks close to spoiling (wilting, browning, overripe)"),
+    }),
+  ),
+  note: z.string().describe("One short friendly sentence about what you can see, or why the photo was hard to read"),
+});
+export type ScanResult = z.infer<typeof ScanResult>;
+
+export const ScanRequest = z.object({
+  image: z
+    .string()
+    .max(4_000_000, "That photo is too large")
+    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, "Expected a JPEG, PNG or WebP image"),
+  knownNames: z.array(z.string().max(60)).max(500).default([]),
+});

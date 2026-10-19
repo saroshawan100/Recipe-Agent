@@ -7,6 +7,7 @@ import type {
   Preferences,
   RecipeDto,
   RecipeSummary,
+  ScanResponse,
   ShoppingItem,
   SuggestResponse,
 } from "../types";
@@ -64,6 +65,8 @@ export interface Backend {
   recipeDetails(id: string): Promise<RecipeDto>;
   recipeImage(id: string): Promise<{ imageUrl: string }>;
 
+  /** Identifies ingredients in a photo (a base64 data URL). Stateless, so both modes use `/api/ai/scan`. */
+  scanPhoto(image: string, knownNames: string[]): Promise<ScanResponse>;
   getPantry(): Promise<PantryData>;
   savePantry(data: PantryData): Promise<PantryData>;
 

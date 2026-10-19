@@ -7,15 +7,15 @@ import { streamCompletion } from "../lib/sse.js";
 import { toChatCompletionMessages } from "../lib/chatMessages.js";
 import { aiLimiter } from "../middleware/rateLimit.js";
 import { AskMessages, AskRequest, ChatMessage, CheckinRequest } from "../schemas/coaching.js";
-import { RecipeCard, RecipeDetails, SuggestRequest } from "../schemas/recipe.js";
+import { RecipeCard, RecipeDetails, ScanRequest, SuggestRequest } from "../schemas/recipe.js";
 import { generateCheckin, generateCoachingScript } from "../services/coachService.js";
 import { generateRecipeImage, getOrCreateStepReferenceImage } from "../services/imageService.js";
-import { generateDetails, suggestRecipes } from "../services/openaiService.js";
+import { generateDetails, scanPantryPhoto, suggestRecipes } from "../services/openaiService.js";
 import { askSystemPrompt, chatSystemPrompt } from "../services/prompts.js";
 
 /**
  * Stateless AI endpoints used in browser-storage mode: the client sends the recipe
- * context each call needs and keeps the results in its own storage.
+ * context each call needs and keeps the results in its own storage. `/scan` is also used in MongoDB mode.
  */
 export const aiRouter = Router();
 aiRouter.use(aiLimiter);
@@ -28,6 +28,11 @@ function checkStep(details: RecipeDetails, stepIndex: number) {
 
 aiRouter.post("/suggest", async (req, res) => {
   res.json(await suggestRecipes(SuggestRequest.parse(req.body)));
+});
+
+aiRouter.post("/scan", async (req, res) => {
+  const { image, knownNames } = ScanRequest.parse(req.body);
+  res.json(await scanPantryPhoto(image, knownNames));
 });
 
 aiRouter.post("/details", async (req, res) => {

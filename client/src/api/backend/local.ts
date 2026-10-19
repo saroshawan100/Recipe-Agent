@@ -7,6 +7,7 @@ import type {
   RecipeDetails,
   RecipeDto,
   RecipeSummary,
+  ScanResponse,
   ShoppingItem,
 } from "../types";
 import { idb } from "./idb";
@@ -164,6 +165,8 @@ export const localBackend: Backend = {
       await idb.put("recipes", { ...(await findRecipe(id)), imageUrl });
       return { imageUrl };
     }),
+
+  scanPhoto: (image, knownNames) => ai<ScanResponse>("/scan", { image, knownNames }),
 
   getPantry: async () => (await idb.get<PantryData>("kv", "pantry")) ?? { items: [], staples: [] },
   savePantry: (data) => idb.put("kv", data, "pantry"),
