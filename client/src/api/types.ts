@@ -189,3 +189,16 @@ export interface ChatMessage {
   /** Optional compressed JPEG data URL for a user photo in the in-step chef chat. */
   image?: string;
 }
+
+export interface ScannedItem {
+  name: string;
+  category: "proteins" | "vegetables" | "fruits" | "grains" | "dairy" | "spices" | "sauces" | "pantry";
+  quantity: string | null;
+  confidence: "high" | "medium" | "low";
+  useSoon: boolean;
+}
+
+export interface ScanResponse {
+  items: ScannedItem[];
+  note: string;
+}

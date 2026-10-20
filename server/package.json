@@ -7,7 +7,8 @@
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.evals.json",
+    "eval": "tsx evals/run.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

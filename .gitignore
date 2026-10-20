@@ -6,3 +6,6 @@ dist/
 server/public/generated/*
 !server/public/generated/.gitkeep
 .DS_Store
+server/evals/results/
+server/evals/fixtures/scan/*
+!server/evals/fixtures/scan/.gitkeep

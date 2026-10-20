@@ -2,9 +2,10 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 import { config } from "../config.js";
+import { violation } from "../lib/dietGuard.js";
 import { HttpError } from "../lib/httpError.js";
-import { RecipeDetails, SuggestResult, type RecipeCard } from "../schemas/recipe.js";
-import { detailsPrompt, suggestPrompt, type RecipeContext } from "./prompts.js";
+import { RecipeDetails, ScanResult, SuggestResult, type RecipeCard } from "../schemas/recipe.js";
+import { detailsPrompt, scanPrompt, suggestPrompt, type RecipeContext } from "./prompts.js";
 
 export const openai = new OpenAI({ apiKey: config.openaiApiKey, maxRetries: 2, timeout: 120_000 });
 
@@ -55,7 +56,11 @@ function normalizeCard(card: RecipeCard): RecipeCard {
 
 export async function suggestRecipes(ctx: RecipeContext): Promise<SuggestResult> {
   const result = await structured(SuggestResult, "recipe_suggestions", suggestPrompt(ctx));
-  const all = [...result.makeNow, ...result.quickShop].map(normalizeCard);
+  const all = [...result.makeNow, ...result.quickShop].map(normalizeCard).filter((card) => {
+    const why = violation(card, ctx.preferences);
+    if (why) console.warn(`[suggest] dropped "${card.title}": ${why}`);
+    return !why;
+  });
   // Re-bucket in case the model put a recipe that needs shopping into "make now".
   return {
     chefNote: result.chefNote,
@@ -73,4 +78,23 @@ export async function generateDetails(card: RecipeCard, ctx: RecipeContext): Pro
       timerSeconds: s.timerSeconds && s.timerSeconds > 0 ? round(s.timerSeconds) : null,
     })),
   };
+}
+
+const MAX_SCAN_ITEMS = 40;
+
+/** Identifies ingredients in a pantry/fridge photo (a base64 data URL). */
+export async function scanPantryPhoto(image: string, knownNames: string[]): Promise<ScanResult> {
+  const result = await structured(ScanResult, "pantry_scan", { ...scanPrompt(knownNames), image });
+  // The model sometimes lists the same thing twice ("Eggs" and "eggs"); keep the first.
+  const seen = new Set<string>();
+  const items = result.items
+    .map((i) => ({ ...i, name: i.name.trim().replace(/\s+/g, " ") }))
+    .filter((i) => {
+      const key = i.name.toLowerCase();
+      if (!i.name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, MAX_SCAN_ITEMS);
+  return { note: result.note, items };
 }

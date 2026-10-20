@@ -11,7 +11,8 @@
     "dev": "concurrently -n server,client -c yellow,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w server && npm run build -w client",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
-    "start": "npm run start -w server"
+    "start": "npm run start -w server",
+    "eval": "npm run eval -w server --"
   },
   "devDependencies": {
     "concurrently": "^9.2.0"

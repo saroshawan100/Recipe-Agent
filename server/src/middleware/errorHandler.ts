@@ -29,6 +29,9 @@ export function toHttpError(err: unknown): HttpError {
   if (err && typeof err === "object" && "type" in err && (err as { type: string }).type === "entity.parse.failed") {
     return new HttpError(400, "Malformed JSON body");
   }
+  if (err && typeof err === "object" && "type" in err && (err as { type: string }).type === "entity.too.large") {
+    return new HttpError(413, "That request is too large. If you sent a photo, try a smaller one.");
+  }
 
   return new HttpError(500, "Something went wrong in the kitchen. Please try again.");
 }
