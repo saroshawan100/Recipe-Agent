@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clock, Download, Refrigerator, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import { Card, Popover, Switch } from "@/components/ui/primitives";
 import { findCatalogItem } from "@/data/ingredients";
 import { cn } from "@/lib/utils";
 import { useKitchenStore, type SelectedIngredient } from "@/store/useKitchenStore";
+import { useAccountStore } from "@/store/useAccountStore";
 import { IngredientImage } from "./IngredientImage";
 import { customIngredient, toSelected } from "./IngredientPicker";
 
@@ -26,6 +28,18 @@ export function PantryTray() {
   const loadPantry = useKitchenStore((s) => s.loadPantry);
   const { data: saved } = usePantry();
   const savePantry = useSavePantry();
+  const accountId = useAccountStore((s) => s.user?.id);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const timer = window.setTimeout(() => {
+      savePantry.mutate({
+        items: selected.map((s) => ({ name: s.name, category: s.category, quantity: s.quantity || undefined, useSoon: s.useSoon || undefined })),
+        staples,
+      }, { onError: (error) => toast.error("Couldn't sync pantry", { description: error.message }) });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [accountId, selected, staples, savePantry.mutate]);
 
   const onSave = () =>
     savePantry.mutate(

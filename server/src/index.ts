@@ -10,6 +10,7 @@ import { requireClientId } from "./middleware/clientId.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireDb } from "./middleware/requireDb.js";
 import { aiRouter } from "./routes/ai.js";
+import { accountRouter } from "./routes/account.js";
 import { chatRouter } from "./routes/chat.js";
 import { cookRouter } from "./routes/cook.js";
 import { pantryRouter } from "./routes/pantry.js";
@@ -35,12 +36,15 @@ app.get("/api/health", (_req, res) => {
     storage: config.storage,
     db: config.storage === "browser" ? "not used" : isDbConnected() ? "connected" : "disconnected",
     openai: config.openaiApiKey ? "configured" : "missing",
+    accountsEnabled: config.storage === "mongo",
     model: config.model,
   });
 });
 
 const api = express.Router();
 api.use(requireClientId);
+api.use("/auth", accountRouter);
+api.use("/account", accountRouter);
 api.use("/ai", aiRouter);
 if (config.storage === "mongo") {
   const data = express.Router();

@@ -1,8 +1,11 @@
-import { ChefHat, Heart, Moon, ShoppingBasket, Sun, UtensilsCrossed } from "lucide-react";
+import { ChefHat, Heart, Moon, ShoppingBasket, Sun, UtensilsCrossed, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useShoppingList } from "@/api/hooks";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/useUiStore";
+import { useAccountStore } from "@/store/useAccountStore";
+import { AccountDialog } from "./AccountDialog";
 
 const links = [
   { to: "/", label: "Kitchen", icon: UtensilsCrossed, end: true },
@@ -11,10 +14,15 @@ const links = [
 ];
 
 export function Header() {
+  const [accountOpen, setAccountOpen] = useState(false);
+  const account = useAccountStore((s) => s.user);
+  const initializeAccount = useAccountStore((s) => s.initialize);
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const { data } = useShoppingList();
   const openItems = data?.items.filter((i) => !i.checked).length ?? 0;
+
+  useEffect(() => { void initializeAccount(); }, [initializeAccount]);
 
   return (
     <header className="glass sticky top-0 z-30 border-x-0 border-t-0 print:hidden">
@@ -51,6 +59,14 @@ export function Header() {
             </NavLink>
           ))}
           <button
+            onClick={() => setAccountOpen(true)}
+            aria-label={account ? `Account: ${account.email}` : "Account"}
+            className="ml-1 flex h-9 cursor-pointer items-center gap-2 rounded-xl px-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+          >
+            <UserRound className="h-4 w-4" />
+            <span className="hidden md:inline">{account?.email ?? "Account"}</span>
+          </button>
+          <button
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             className="ml-1 grid h-9 w-9 cursor-pointer place-items-center rounded-xl text-muted transition-colors hover:bg-surface-2 hover:text-fg"
@@ -59,6 +75,7 @@ export function Header() {
           </button>
         </nav>
       </div>
+      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} />
     </header>
   );
 }

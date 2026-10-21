@@ -17,7 +17,7 @@ Each recipe comes with beginner-friendly steps, a glossary for cooking terms, ma
 
 ## Quick start
 
-You only need Node 20.14+ and your own OpenAI API key. No database required.
+You need Node 20.14+ and your own OpenAI API key. MongoDB is optional for local, browser-only use.
 
 1. Create a `.env` file in the project root with your key:
 
@@ -40,19 +40,25 @@ The server picks a mode at startup and logs it (`[server] storage: ...`). The ap
 
 | Mode | When | Where data lives |
 | --- | --- | --- |
-| **Browser** (default) | `MONGODB_URI` is not set | Each user's browser (IndexedDB). Nothing to install. |
-| **MongoDB** | `MONGODB_URI` is set | A MongoDB database, such as the Atlas free tier |
+| **Browser** (default) | `MONGODB_URI` is not set | Guest data stays in each user's browser (IndexedDB). Nothing to install. |
+| **MongoDB** | `MONGODB_URI` is set | MongoDB stores data for anonymous browser IDs and signed-in accounts |
 
 Set `STORAGE=browser` or `STORAGE=mongo` to force a mode.
 
 **Browser mode notes**
-- Recipes, saved recipes, pantry, shopping list, and cooking progress are stored per browser. They don't sync between browsers or teammates, and clearing site data erases them.
+- Guest recipes, saved recipes, pantry, shopping list, and cooking progress are stored per browser. They don't sync between browsers, and clearing site data erases them.
 - The last 80 unsaved recipes are kept. Saved recipes are never pruned.
 - Generated dish photos are saved as files in `server/public/generated/` on whichever machine runs the server.
 
 **MongoDB mode setup**
 - Add `MONGODB_URI=mongodb+srv://...` to `.env`. In Atlas, open **Network Access** and allow your current IP address, or the server won't be able to connect.
 - Want a local database instead? Run `docker run -d --name pantry-chef-mongo -p 27017:27017 mongo:7` and set `MONGODB_URI=mongodb://127.0.0.1:27017/pantry-chef`. Remove it later with `docker rm -f pantry-chef-mongo`.
+
+**Accounts and syncing**
+- Accounts require MongoDB mode. Add `MONGODB_URI=...` to `.env`, then restart the server.
+- Create an account with an email address and a password of at least 12 characters. Passwords are stored as salted hashes; sign-in uses an HTTP-only session cookie.
+- A new account starts with the current browser's pantry and cooking preferences. While signed in, pantry edits and preference changes sync to MongoDB automatically and load again on other devices after sign-in.
+- Without MongoDB, the app continues to keep data in the browser and the Account panel explains how to enable syncing.
 
 ## Environment variables
 
@@ -78,7 +84,8 @@ Set `STORAGE=browser` or `STORAGE=mongo` to force a mode.
 
 ## How it fits together
 
-- There are no accounts. Each browser gets an anonymous ID (stored in `localStorage`) that's sent as an `X-Client-Id` header and used for rate limiting and, in MongoDB mode, for keeping each person's data separate.
+- Guests get an anonymous ID (stored in `localStorage`) that's sent as an `X-Client-Id` header. In MongoDB mode, guest data is scoped to that ID; signed-in users use an HTTP-only session cookie and their account ID to scope synced data.
+- Accounts use email and password. Passwords are salted and hashed on the server. A session cookie restores the signed-in account, pantry, and cooking preferences across devices.
 - The client talks to storage through one interface (`client/src/api/backend/`) with two implementations: `local.ts` (IndexedDB) and `remote.ts` (the MongoDB REST API).
 - In browser mode the server is stateless. The client sends the recipe context with each request to `/api/ai/*` (suggest, details, image, coach, checkin, ask, chat) and stores the results itself.
 - AI responses use OpenAI Structured Outputs validated with Zod, so the UI always gets well-formed recipes, nutrition, and coaching timelines.

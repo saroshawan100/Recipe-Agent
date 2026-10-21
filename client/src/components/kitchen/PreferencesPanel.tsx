@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Clock, CookingPot, Flame, Globe, Leaf, ShoppingCart, SlidersHorizontal, Users } from "lucide-react";
 import type { Preferences } from "@/api/types";
@@ -6,6 +6,8 @@ import { Card, Chip, Segmented, SectionLabel, Slider, Stepper } from "@/componen
 import { ALLERGIES, CUISINES, DIETS, EQUIPMENT, STAPLE_OPTIONS } from "@/data/ingredients";
 import { cn } from "@/lib/utils";
 import { useKitchenStore } from "@/store/useKitchenStore";
+import { useAccountStore } from "@/store/useAccountStore";
+import { toast } from "sonner";
 
 function toggleIn(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -18,6 +20,17 @@ export function PreferencesPanel() {
   const setStaples = useKitchenStore((s) => s.setStaples);
   const [open, setOpen] = useState<string | null>(null);
   const [customAllergy, setCustomAllergy] = useState("");
+  const accountId = useAccountStore((s) => s.user?.id);
+
+  useEffect(() => {
+    if (!accountId) return;
+    const timer = window.setTimeout(() => {
+      void useAccountStore.getState().savePreferences(prefs).catch((error: Error) => {
+        toast.error("Couldn't sync preferences", { description: error.message });
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [accountId, prefs]);
 
   return (
     <Card className="p-5">

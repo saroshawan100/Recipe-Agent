@@ -38,6 +38,7 @@ Env vars go in the **root** `.env` (see `.env.example`). Only `OPENAI_API_KEY` i
 
 - **Browser mode (default):** the server is stateless. Only `/api/ai/*` (`routes/ai.ts`) is mounted. The client stores everything in IndexedDB and sends the full recipe context with each AI request.
 - **Mongo mode:** the data routes (`recipes`, `cook`, `chat`, `pantry`, `saved`, `shopping-list`) are also mounted behind `requireDb`. They persist to MongoDB through the models in `server/src/models/`.
+- **Accounts:** registration, sign-in and synced pantry/preferences require Mongo mode. Passwords use Node scrypt with per-account salts; opaque session tokens are stored as hashes in MongoDB and sent only in HTTP-only, SameSite=Lax cookies. Keep user data scoped through `req.clientId` after the session is resolved.
 
 The client calls `GET /api/health` once and picks a backend (`client/src/api/backend/index.ts`):
 - `local.ts`: IndexedDB plus `/api/ai/*`
@@ -50,7 +51,7 @@ Both implement the `Backend` interface in `client/src/api/backend/types.ts`.
 - client: `local.ts` **and** `remote.ts`, plus the `Backend` interface
 
 ### Server (`server/src`)
-- `index.ts`: middleware chain helmet → cors → json → `requireClientId` → routes → `errorHandler`. Every `/api` route requires an `X-Client-Id` header matching `^[A-Za-z0-9_-]{8,64}$`. There are no user accounts; this ID scopes Mongo data and rate limits.
+- `index.ts`: middleware chain helmet → cors → json → `requireClientId` → routes → `errorHandler`. Guest `/api` requests use an `X-Client-Id` matching `^[A-Za-z0-9_-]{8,64}$`; authenticated requests use the account ID from an HTTP-only session cookie. This ID scopes Mongo data and AI rate limits.
 - `schemas/`: Zod schemas used as **both** the OpenAI response formats and the request validators.
 - `services/prompts.ts`: every prompt, built on a shared `CHEF_PERSONA` and `SAFETY_TEMPS`.
 - `services/openaiService.ts`: `structured()` wraps `chat.completions.parse` + `zodResponseFormat`. It returns 422 when the model refuses and 502 when the response is empty.
