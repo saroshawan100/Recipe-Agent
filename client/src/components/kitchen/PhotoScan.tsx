@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Camera, Check, Clock, ImagePlus, Loader2 } from "lucide-react";
+import { Camera, Check, Clock, ImagePlus, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useScanPhoto } from "@/api/hooks";
 import type { ScannedItem } from "@/api/types";
@@ -27,10 +27,13 @@ function resolveScan(items: ScannedItem[]) {
 
 /** "Scan a photo" button: sends a fridge/pantry photo to the chef and lets the cook pick which items to add. */
 export function PhotoScan() {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [manualItems, setManualItems] = useState<ReturnType<typeof matchIngredient>[]>([]);
+  const [manualInput, setManualInput] = useState("");
   const selected = useKitchenStore((s) => s.selected);
   const add = useKitchenStore((s) => s.add);
   const scan = useScanPhoto();
@@ -39,8 +42,8 @@ export function PhotoScan() {
   // Resolve each scanned name once so the list shows the same photo/name that will be added.
   const resolved = useMemo(() => resolveScan(scan.data?.items ?? []), [scan.data]);
 
-  const onFile = async (file: File | undefined) => {
-    if (inputRef.current) inputRef.current.value = "";
+  const onFile = async (file: File | undefined, input: HTMLInputElement) => {
+    input.value = "";
     if (!file) return;
     let image: string;
     try {
@@ -51,6 +54,8 @@ export function PhotoScan() {
     }
     setPreview(image);
     setPicked(new Set());
+    setManualItems([]);
+    setManualInput("");
     setOpen(true);
     scan.mutate(
       { image, knownNames: KNOWN_NAMES },
@@ -75,40 +80,77 @@ export function PhotoScan() {
 
   const addPicked = () => {
     const chosen = resolved.filter(({ ingredient }) => picked.has(ingredient.key) && !inPantry.has(ingredient.key));
+    const additions = new Map<string, ReturnType<typeof matchIngredient> & { quantity?: string; useSoon?: boolean }>();
     for (const { item, ingredient } of chosen) {
-      add({ ...ingredient, quantity: item.quantity ?? undefined, useSoon: item.useSoon || undefined });
+      additions.set(ingredient.key, { ...ingredient, quantity: item.quantity ?? undefined, useSoon: item.useSoon || undefined });
     }
-    toast.success(`Added ${chosen.length} ingredient${chosen.length === 1 ? "" : "s"} from your photo`);
+    for (const ingredient of manualItems) {
+      if (!inPantry.has(ingredient.key)) additions.set(ingredient.key, ingredient);
+    }
+    for (const ingredient of additions.values()) {
+      add(ingredient);
+    }
+    const total = additions.size;
+    toast.success(`Added ${total} ingredient${total === 1 ? "" : "s"} to your pantry`);
     setOpen(false);
   };
 
-  const pickedCount = resolved.filter(({ ingredient }) => picked.has(ingredient.key) && !inPantry.has(ingredient.key)).length;
+  const addManualItem = () => {
+    const item = manualInput.trim().replace(/\s+/g, " ");
+    if (!item) return;
+    const ingredient = matchIngredient(item);
+    setManualItems((prev) => prev.some((entry) => entry.key === ingredient.key) ? prev : [...prev, ingredient]);
+    setManualInput("");
+  };
+
+  const removeManualItem = (key: string) => setManualItems((prev) => prev.filter((item) => item.key !== key));
+
+  const pickedCount = resolved.filter(({ ingredient }) => picked.has(ingredient.key) && !inPantry.has(ingredient.key)).length
+    + manualItems.filter((item) => !inPantry.has(item.key) && !picked.has(item.key)).length;
 
   return (
     <>
-      <Button
-        variant="outline"
-        className="h-14 rounded-2xl px-4"
-        onClick={() => inputRef.current?.click()}
-        title="Scan a photo of your fridge or pantry"
-        aria-label="Scan a photo of your fridge or pantry"
-      >
-        <Camera className="h-5 w-5" />
-        <span className="hidden sm:inline">Scan photo</span>
-      </Button>
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => void onFile(e.target.files?.[0], e.currentTarget)}
+      />
+      <input
+        ref={uploadInputRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => void onFile(e.target.files?.[0])}
+        onChange={(e) => void onFile(e.target.files?.[0], e.currentTarget)}
       />
+      <Button
+        variant="outline"
+        className="h-14 rounded-2xl px-3"
+        onClick={() => cameraInputRef.current?.click()}
+        title="Take a fridge photo"
+        aria-label="Take a fridge photo"
+      >
+        <Camera className="h-5 w-5" />
+        <span className="text-xs sm:text-sm">Take photo</span>
+      </Button>
+      <Button
+        variant="outline"
+        className="h-14 rounded-2xl px-3"
+        onClick={() => uploadInputRef.current?.click()}
+        title="Upload a fridge image"
+        aria-label="Upload a fridge image"
+      >
+        <ImagePlus className="h-5 w-5" />
+        <span className="text-xs sm:text-sm">Upload image</span>
+      </Button>
 
       <Modal
         open={open}
         onOpenChange={setOpen}
-        title="What's in the photo"
-        description="Pick what to add. Double-check anything the chef wasn't sure about."
+        title="Review fridge ingredients"
+        description="Uncheck anything the chef got wrong, then add items it missed before confirming."
       >
         {preview && <img src={preview} alt="Your photo" className="mb-4 max-h-48 w-full rounded-2xl object-cover" />}
 
@@ -122,7 +164,7 @@ export function PhotoScan() {
         {scan.isError && (
           <div className="space-y-3 py-4 text-center">
             <p className="text-sm text-tomato-600 dark:text-tomato-300">{scan.error.message}</p>
-            <Button variant="outline" onClick={() => inputRef.current?.click()}>
+            <Button variant="outline" onClick={() => uploadInputRef.current?.click()}>
               <ImagePlus className="h-4 w-4" /> Try another photo
             </Button>
           </div>
@@ -147,8 +189,38 @@ export function PhotoScan() {
                 ))}
               </ul>
             )}
+            <form
+              className="flex gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                addManualItem();
+              }}
+            >
+              <input
+                value={manualInput}
+                onChange={(event) => setManualInput(event.target.value)}
+                placeholder="Add an ingredient the photo missed"
+                aria-label="Add a missed ingredient"
+                className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-sm outline-none focus:border-saffron-500"
+              />
+              <Button type="submit" variant="outline" disabled={!manualInput.trim()} aria-label="Add ingredient">
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </form>
+            {manualItems.length > 0 && (
+              <div className="flex flex-wrap gap-2" aria-label="Manually added ingredients">
+                {manualItems.map((item) => (
+                  <span key={item.key} className="inline-flex items-center gap-1 rounded-full border border-saffron-500/50 bg-saffron-500/10 py-1 pl-3 pr-1 text-sm">
+                    {item.name}
+                    <button type="button" onClick={() => removeManualItem(item.key)} aria-label={`Remove ${item.name}`} className="grid h-6 w-6 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => inputRef.current?.click()}>
+              <Button variant="ghost" onClick={() => uploadInputRef.current?.click()}>
                 <ImagePlus className="h-4 w-4" /> Another photo
               </Button>
               <Button onClick={addPicked} disabled={pickedCount === 0}>
