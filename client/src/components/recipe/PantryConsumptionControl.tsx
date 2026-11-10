@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Refrigerator } from "lucide-react";
+import { Refrigerator, X } from "lucide-react";
 import { toast } from "sonner";
 import { usePantry, useSavePantry } from "@/api/hooks";
 import type { PantryItem, RecipeDetails } from "@/api/types";
@@ -120,10 +120,13 @@ export function PantryConsumptionControl({ details }: { details: RecipeDetails }
               <label key={stock.name} className="flex cursor-pointer items-center gap-3 py-2.5 text-sm">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-herb-600"
+                  className="peer sr-only"
                   checked={isChecked(ingredient, stock)}
                   onChange={(event) => setOverrides((current) => ({ ...current, [stock.name]: event.target.checked }))}
                 />
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded border border-line bg-transparent text-white transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-tomato-500 peer-checked:border-tomato-600 peer-checked:bg-tomato-600" aria-hidden="true">
+                  {isChecked(ingredient, stock) && <X className="h-4 w-4" strokeWidth={3} />}
+                </span>
                 <span className="flex-1">{stock.name}</span>
                 <span className="text-muted">Used {ingredient.amount ?? "some"} {ingredient.unit ?? ""}</span>
               </label>
