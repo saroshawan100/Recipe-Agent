@@ -1,7 +1,7 @@
 const DB_NAME = "pantry-chef";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-export type StoreName = "recipes" | "sessions" | "kv";
+export type StoreName = "recipes" | "sessions" | "kv" | "feedback";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -13,6 +13,7 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("recipes")) db.createObjectStore("recipes", { keyPath: "id" });
       if (!db.objectStoreNames.contains("sessions")) db.createObjectStore("sessions", { keyPath: "id" });
       if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+      if (!db.objectStoreNames.contains("feedback")) db.createObjectStore("feedback", { keyPath: "recipeId" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => {

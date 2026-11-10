@@ -6,10 +6,12 @@ import type {
   PantryItem,
   Preferences,
   RecipeDto,
+  RecipeFeedback,
   RecipeSummary,
   ScanResponse,
   ShoppingItem,
   SuggestResponse,
+  TasteProfile,
 } from "../types";
 
 export type StorageMode = "browser" | "mongo";
@@ -18,6 +20,7 @@ export interface SuggestInput {
   ingredients: PantryItem[];
   staples: string[];
   preferences: Preferences;
+  tasteProfile?: TasteProfile;
 }
 
 export interface PantryData {
@@ -64,6 +67,8 @@ export interface Backend {
   getRecipe(id: string): Promise<RecipeDto>;
   recipeDetails(id: string): Promise<RecipeDto>;
   recipeImage(id: string): Promise<{ imageUrl: string }>;
+  getRecipeFeedback(id: string): Promise<RecipeFeedback>;
+  saveRecipeFeedback(id: string, feedback: Pick<RecipeFeedback, "tried" | "rating">): Promise<RecipeFeedback>;
 
   /** Identifies ingredients in a photo (a base64 data URL). Stateless, so both modes use `/api/ai/scan`. */
   scanPhoto(image: string, knownNames: string[]): Promise<ScanResponse>;

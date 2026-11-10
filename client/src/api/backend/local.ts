@@ -6,9 +6,12 @@ import type {
   RecipeCard,
   RecipeDetails,
   RecipeDto,
+  RecipeFeedback,
   RecipeSummary,
+  RecipeProfileTags,
   ScanResponse,
   ShoppingItem,
+  TasteProfile,
 } from "../types";
 import { idb } from "./idb";
 import { mergeItems, type IncomingItem } from "./shopping";
@@ -44,6 +47,16 @@ interface LocalSession extends CookSession {
   checkins: Checkin[];
 }
 
+interface LocalFeedbackRecord extends RecipeFeedback {
+  recipeId: string;
+  tagSnapshot: {
+    cuisine: string;
+    ingredients: string[];
+    profileTags: RecipeProfileTags | null;
+    otherTags: string[];
+  };
+}
+
 const newId = () => crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
 const inFlight = new Map<string, Promise<unknown>>();
@@ -74,6 +87,44 @@ function toDto(r: LocalRecipe): RecipeDto {
 const toSummary = (r: LocalRecipe): RecipeSummary => ({ id: r.id, group: r.group, imageUrl: r.imageUrl, saved: r.saved, ...r.card });
 
 const toSessionDto = ({ checkins: _checkins, ...session }: LocalSession): CookSession => session;
+
+function feedbackTags(record: LocalFeedbackRecord) {
+  const tags = new Set<string>();
+  const add = (kind: string, value: unknown) => {
+    if (typeof value === "string" && value.trim() && value !== "none") tags.add(`${kind}: ${value.trim().replace(/-/g, " ")}`);
+  };
+  add("Cuisine", record.tagSnapshot.cuisine);
+  for (const tag of record.tagSnapshot.ingredients) add("Ingredient", tag);
+  for (const tag of record.tagSnapshot.otherTags) add("Recipe style", tag);
+  const profile = record.tagSnapshot.profileTags;
+  if (profile) {
+    add("Protein", profile.mainProtein);
+    for (const tag of profile.cookingMethods) add("Method", tag);
+    for (const tag of profile.flavorProfiles) add("Flavor", tag);
+    add("Effort", profile.effort);
+    add("Time", profile.timeBand);
+    add("Cost", profile.costLevel);
+    for (const tag of profile.nutritionStyles) add("Nutrition", tag);
+  }
+  return [...tags];
+}
+
+async function getLocalTasteProfile(): Promise<TasteProfile> {
+  const feedback = (await idb.getAll<LocalFeedbackRecord>("feedback")).filter((entry) => entry.rating);
+  const scores = new Map<string, number>();
+  for (const entry of feedback) {
+    const direction = entry.rating === "liked" ? 1 : -1;
+    const weight = entry.tried ? 2 : 1;
+    for (const tag of feedbackTags(entry)) scores.set(tag, (scores.get(tag) ?? 0) + direction * weight);
+  }
+  const toSignals = (direction: 1 | -1) =>
+    [...scores.entries()]
+      .filter(([, score]) => Math.sign(score) === direction)
+      .sort((a, b) => direction === 1 ? b[1] - a[1] : a[1] - b[1])
+      .slice(0, 20)
+      .map(([tag, score]) => `${tag} (signal ${Math.abs(score)})`);
+  return { likedTags: toSignals(1), avoidedTags: toSignals(-1) };
+}
 
 async function findRecipe(id: string): Promise<LocalRecipe> {
   const recipe = await idb.get<LocalRecipe>("recipes", id);
@@ -117,13 +168,14 @@ export const localBackend: Backend = {
   mode: "browser",
 
   async suggest(input) {
-    const result = await ai<{ chefNote: string; makeNow: RecipeCard[]; quickShop: RecipeCard[] }>("/suggest", input);
+    const request = { ...input, tasteProfile: await getLocalTasteProfile() };
+    const result = await ai<{ chefNote: string; makeNow: RecipeCard[]; quickShop: RecipeCard[] }>("/suggest", request);
     const createdAt = new Date().toISOString();
     const make = (group: LocalRecipe["group"]) => (card: RecipeCard): LocalRecipe => ({
       id: newId(),
       group,
       card,
-      context: input,
+      context: request,
       details: null,
       imageUrl: null,
       coaching: {},
@@ -139,6 +191,30 @@ export const localBackend: Backend = {
   },
 
   getRecipe: async (id) => toDto(await findRecipe(id)),
+
+  async getRecipeFeedback(id) {
+    const record = await idb.get<LocalFeedbackRecord>("feedback", id);
+    return record
+      ? { tried: record.tried, rating: record.rating, updatedAt: record.updatedAt }
+      : { tried: false, rating: null, updatedAt: null };
+  },
+
+  async saveRecipeFeedback(id, feedback) {
+    const recipe = await findRecipe(id);
+    const record: LocalFeedbackRecord = {
+      recipeId: id,
+      ...feedback,
+      updatedAt: new Date().toISOString(),
+      tagSnapshot: {
+        cuisine: recipe.card.cuisine,
+        ingredients: [...new Set(recipe.card.usedIngredients)],
+        profileTags: recipe.card.profileTags ?? null,
+        otherTags: [...new Set(recipe.card.tags)],
+      },
+    };
+    await idb.put("feedback", record);
+    return { tried: record.tried, rating: record.rating, updatedAt: record.updatedAt };
+  },
 
   recipeDetails: (id) =>
     dedupe(`details:${id}`, async () => {

@@ -20,6 +20,45 @@ export interface Macros {
   fat: number;
 }
 
+export interface RecipeProfileTags {
+  mainProtein:
+    | "chicken"
+    | "turkey"
+    | "beef"
+    | "pork"
+    | "lamb"
+    | "fish"
+    | "shellfish"
+    | "eggs"
+    | "tofu"
+    | "tempeh"
+    | "beans-lentils"
+    | "nuts-seeds"
+    | "dairy"
+    | "mixed"
+    | "none"
+    | "other";
+  cookingMethods: ("no-cook" | "stovetop" | "bake" | "roast" | "grill" | "broil" | "stir-fry" | "braise" | "steam" | "slow-cook" | "pressure-cook" | "air-fry" | "other")[];
+  flavorProfiles: ("savory" | "spicy" | "sweet" | "tangy" | "smoky" | "umami" | "herbal" | "citrusy" | "creamy" | "mild")[];
+  effort: "easy" | "moderate" | "involved";
+  timeBand: "under-20" | "20-40" | "over-40";
+  costLevel: "budget" | "moderate" | "higher-cost";
+  nutritionStyles: ("high-protein" | "high-fiber" | "lower-calorie" | "lower-carb" | "plant-forward" | "balanced" | "lower-sodium")[];
+}
+
+export type RecipeFeedbackRating = "liked" | "notForMe" | null;
+
+export interface RecipeFeedback {
+  tried: boolean;
+  rating: RecipeFeedbackRating;
+  updatedAt: string | null;
+}
+
+export interface TasteProfile {
+  likedTags: string[];
+  avoidedTags: string[];
+}
+
 export interface RecipeCard {
   title: string;
   emoji: string;
@@ -32,6 +71,8 @@ export interface RecipeCard {
   usedIngredients: string[];
   missingIngredients: { name: string; aisle: Aisle }[];
   macros: Macros;
+  /** Optional for recipes saved before structured profile tags were added. */
+  profileTags?: RecipeProfileTags;
   tags: string[];
 }
 

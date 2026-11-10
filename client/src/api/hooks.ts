@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getBackend, type CheckinInput, type ListResponse, type PantryData, type SessionPatch, type SuggestInput } from "./backend";
-import type { RecipeDto } from "./types";
+import type { RecipeDto, RecipeFeedback } from "./types";
 
 export type { SuggestInput };
 
@@ -17,6 +17,25 @@ export function useRecipe(id: string | undefined) {
     queryKey: ["recipe", id],
     queryFn: async () => (await getBackend()).getRecipe(id!),
     enabled: !!id,
+  });
+}
+
+export function useRecipeFeedback(id: string | undefined) {
+  return useQuery({
+    queryKey: ["recipe-feedback", id],
+    queryFn: async () => (await getBackend()).getRecipeFeedback(id!),
+    enabled: !!id,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useSaveRecipeFeedback() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...feedback }: { id: string } & Pick<RecipeFeedback, "tried" | "rating">) =>
+      (await getBackend()).saveRecipeFeedback(id, feedback),
+    onSuccess: (feedback, { id }) => qc.setQueryData(["recipe-feedback", id], feedback),
   });
 }
 

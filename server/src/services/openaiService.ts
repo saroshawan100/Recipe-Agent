@@ -40,11 +40,16 @@ const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
 const round = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 
 function normalizeCard(card: RecipeCard): RecipeCard {
+  const totalMinutes = Math.max(1, round(card.totalMinutes));
   return {
     ...card,
     matchPercent: clamp(round(card.matchPercent), 0, 100),
-    totalMinutes: Math.max(1, round(card.totalMinutes)),
+    totalMinutes,
     servings: Math.max(1, round(card.servings)),
+    profileTags: {
+      ...card.profileTags,
+      timeBand: totalMinutes < 20 ? "under-20" : totalMinutes <= 40 ? "20-40" : "over-40",
+    },
     macros: {
       calories: Math.max(0, round(card.macros.calories)),
       protein: Math.max(0, round(card.macros.protein)),

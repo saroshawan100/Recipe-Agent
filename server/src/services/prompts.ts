@@ -1,4 +1,4 @@
-import type { PantryItemInput, Preferences, RecipeCard, RecipeDetails } from "../schemas/recipe.js";
+import type { PantryItemInput, Preferences, RecipeCard, RecipeDetails, TasteProfile } from "../schemas/recipe.js";
 
 const SAFETY_TEMPS =
   "Safe internal temperatures: poultry 165°F (74°C); ground beef/pork/lamb 160°F (71°C); whole cuts of beef, pork, lamb and veal 145°F (63°C) plus a 3 minute rest; fish 145°F (63°C) or until opaque and flaky; eggs until yolk and white are firm unless the dish is meant to be soft.";
@@ -16,6 +16,7 @@ export interface RecipeContext {
   ingredients: PantryItemInput[];
   staples: string[];
   preferences: Preferences;
+  tasteProfile?: TasteProfile;
 }
 
 function describePantry(ingredients: PantryItemInput[]): string {
@@ -52,6 +53,7 @@ function describePreferences(p: Preferences): string {
 
 export function suggestPrompt(ctx: RecipeContext) {
   const { preferences: p } = ctx;
+  const tasteProfile = ctx.tasteProfile ?? { likedTags: [], avoidedTags: [] };
   const makeNowCount = p.mode === "haveOnly" ? 6 : 4;
   const quickShopCount = p.mode === "haveOnly" ? 0 : 4;
   const staples = ctx.staples.length ? ctx.staples.join(", ") : "salt, black pepper, cooking oil, water";
@@ -68,7 +70,9 @@ Rules:
 - Suggest real, well-loved dishes with balanced flavors. Vary cuisines, techniques and main ingredients across the list.
 - Respect max time, equipment, skill level, servings and any calorie/protein targets.
 - Strongly prefer recipes that use ingredients marked [USE SOON].
+- Use learned taste tags as soft personalization: favor liked tags and de-emphasize avoided tags. These are hints, not hard restrictions, and never override explicit allergies, diets, or other user settings.
 - Macros are realistic per-serving estimates.
+- Include profileTags using only the allowed normalized categories. Choose mainProtein from the recipe's central protein; choose cookingMethods and flavorProfiles that genuinely describe the dish. effort describes hands-on work, while difficulty describes cooking skill. Set timeBand from totalMinutes: under-20 for fewer than 20 minutes, 20-40 for 20 through 40 minutes, and over-40 for more than 40 minutes. costLevel is a rough typical grocery-cost estimate per serving, not a current exact price. nutritionStyles are broad non-medical descriptors; use only labels supported by the ingredients and estimated macros, and return an empty array when none clearly apply. Do not use allergy or diet tags as substitutes for the strict preference rules above.
 - matchPercent is an integer 0-100.`;
 
   const user = `My pantry:
@@ -76,6 +80,10 @@ ${describePantry(ctx.ingredients)}
 
 My preferences:
 ${describePreferences(p)}
+
+My learned recipe preferences (soft signals only):
+${tasteProfile.likedTags.length ? `Liked: ${tasteProfile.likedTags.join("; ")}` : "Liked tags: not enough feedback yet"}
+${tasteProfile.avoidedTags.length ? `Avoid or de-emphasize: ${tasteProfile.avoidedTags.join("; ")}` : "Avoided tags: not enough feedback yet"}
 
 Return exactly ${makeNowCount} recipes in "makeNow" that need ZERO extra ingredients (missingIngredients must be empty).
 ${

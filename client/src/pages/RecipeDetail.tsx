@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAddRecipeToList, useRecipe, useRecipeDetails, useRecipeImage, useToggleSaved } from "@/api/hooks";
 import { ChefThinking } from "@/components/kitchen/ChefThinking";
 import { MacroBars } from "@/components/recipe/RecipeCard";
+import { RecipeFeedbackControl } from "@/components/recipe/RecipeFeedbackControl";
 import { IngredientsTab, NutritionTab, StepsTab, TipsTab } from "@/components/recipe/RecipeTabs";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/primitives";
@@ -70,6 +71,18 @@ export function RecipeDetail() {
 
   if (!recipe) return <DetailSkeleton />;
   const card = recipe.card;
+  const profile = card.profileTags;
+  const profileTagLabels = profile
+    ? [
+        profile.mainProtein !== "none" ? `Protein: ${readableTag(profile.mainProtein)}` : null,
+        ...profile.cookingMethods.map((tag) => `Method: ${readableTag(tag)}`),
+        ...profile.flavorProfiles.map((tag) => `Flavor: ${readableTag(tag)}`),
+        `Effort: ${readableTag(profile.effort)}`,
+        `Time: ${profile.timeBand === "under-20" ? "under 20 min" : profile.timeBand === "20-40" ? "20–40 min" : "over 40 min"}`,
+        `Cost: ${readableTag(profile.costLevel)}`,
+        ...profile.nutritionStyles.map((tag) => `Nutrition: ${readableTag(tag)}`),
+      ].filter((label): label is string => label !== null)
+    : [];
 
   const onToggleSave = () =>
     toggleSaved.mutate(
@@ -135,6 +148,13 @@ export function RecipeDetail() {
               <Badge key={t}>{t}</Badge>
             ))}
           </div>
+          {profileTagLabels.length > 0 && (
+            <div className="flex flex-wrap gap-2" aria-label="Recipe profile tags">
+              {profileTagLabels.map((label) => (
+                <Badge key={label} tone="herb">{label}</Badge>
+              ))}
+            </div>
+          )}
           <h1 className="text-4xl leading-tight font-semibold sm:text-5xl">{card.title}</h1>
           <p className="text-lg leading-relaxed text-muted">{details?.intro ?? card.description}</p>
 
@@ -166,6 +186,7 @@ export function RecipeDetail() {
               </Button>
             )}
           </div>
+          <RecipeFeedbackControl recipeId={recipe.id} />
         </motion.div>
       </section>
 
@@ -237,6 +258,13 @@ export function RecipeDetail() {
       )}
     </div>
   );
+}
+
+function readableTag(tag: string) {
+  return tag
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

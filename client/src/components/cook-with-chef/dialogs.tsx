@@ -7,6 +7,8 @@ import { useStepReferenceImage } from "@/api/hooks";
 import type { ChatMessage, RecipeDto } from "@/api/types";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { MacroBars } from "@/components/recipe/RecipeCard";
+import { RecipeFeedbackControl } from "@/components/recipe/RecipeFeedbackControl";
+import { PantryConsumptionControl } from "@/components/recipe/PantryConsumptionControl";
 import { Button } from "@/components/ui/button";
 import { Modal, Sheet } from "@/components/ui/overlays";
 import { Card } from "@/components/ui/primitives";
@@ -282,6 +284,8 @@ export function FinishScreen({
                 <p className="text-muted">{details.storage}</p>
               </div>
             </div>
+            <RecipeFeedbackControl recipeId={recipe.id} afterCook />
+            <PantryConsumptionControl details={details} />
             <div className="grid gap-3 sm:grid-cols-3">
               <Button variant="outline" size="lg" onClick={onToggleSave} loading={saving}>
                 {!saving && <Heart className={cn("h-5 w-5", recipe.saved && "fill-tomato-500 text-tomato-500")} />}

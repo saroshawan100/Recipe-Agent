@@ -24,6 +24,30 @@ export const Macros = z.object({
   fat: z.number().describe("grams per serving"),
 });
 
+export const RecipeProfileTags = z.object({
+  mainProtein: z
+    .enum(["chicken", "turkey", "beef", "pork", "lamb", "fish", "shellfish", "eggs", "tofu", "tempeh", "beans-lentils", "nuts-seeds", "dairy", "mixed", "none", "other"])
+    .describe("One normalized main protein category; use none when no protein is central to the dish"),
+  cookingMethods: z
+    .array(z.enum(["no-cook", "stovetop", "bake", "roast", "grill", "broil", "stir-fry", "braise", "steam", "slow-cook", "pressure-cook", "air-fry", "other"]))
+    .min(1)
+    .max(3)
+    .describe("One to three normalized cooking methods that define the recipe"),
+  flavorProfiles: z
+    .array(z.enum(["savory", "spicy", "sweet", "tangy", "smoky", "umami", "herbal", "citrusy", "creamy", "mild"]))
+    .min(1)
+    .max(3)
+    .describe("One to three dominant flavor characteristics"),
+  effort: z.enum(["easy", "moderate", "involved"]).describe("Overall hands-on effort, separate from technical difficulty"),
+  timeBand: z.enum(["under-20", "20-40", "over-40"]).describe("Total time band based on totalMinutes"),
+  costLevel: z.enum(["budget", "moderate", "higher-cost"]).describe("Coarse typical grocery cost per serving, not an exact price"),
+  nutritionStyles: z
+    .array(z.enum(["high-protein", "high-fiber", "lower-calorie", "lower-carb", "plant-forward", "balanced", "lower-sodium"]))
+    .max(3)
+    .describe("Up to three broad, non-medical nutrition descriptors supported by the ingredient list and estimated macros; empty if none clearly apply"),
+});
+export type RecipeProfileTags = z.infer<typeof RecipeProfileTags>;
+
 export const RecipeCard = z.object({
   title: z.string(),
   emoji: z.string().describe("A single emoji that best represents the finished dish"),
@@ -38,6 +62,7 @@ export const RecipeCard = z.object({
     .array(z.object({ name: z.string(), aisle: Aisle }))
     .describe("Ingredients the cook must buy. Empty for make-now recipes."),
   macros: Macros,
+  profileTags: RecipeProfileTags.describe("Structured attributes used to personalize future recommendations"),
   tags: z.array(z.string()).describe("2-4 short tags like 'one-pan', 'high-protein', 'kid-friendly'"),
 });
 export type RecipeCard = z.infer<typeof RecipeCard>;
@@ -123,10 +148,17 @@ export const Preferences = z.object({
 });
 export type Preferences = z.infer<typeof Preferences>;
 
+export const TasteProfile = z.object({
+  likedTags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
+  avoidedTags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
+});
+export type TasteProfile = z.infer<typeof TasteProfile>;
+
 export const SuggestRequest = z.object({
   ingredients: z.array(PantryItemInput).min(1, "Add at least one ingredient").max(100),
   staples: z.array(z.string().trim().max(60)).max(40).default([]),
   preferences: Preferences.default({}),
+  tasteProfile: TasteProfile.default({}),
 });
 export type SuggestRequest = z.infer<typeof SuggestRequest>;
 
