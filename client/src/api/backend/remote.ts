@@ -1,5 +1,5 @@
 import { api, streamApi } from "../client";
-import type { CheckinResponse, CoachingScript, CookSession, RecipeDto, RecipeFeedback, RecipeSummary, ScanResponse, SuggestResponse } from "../types";
+import type { CheckinResponse, CoachingScript, CookSession, RecipeDto, RecipeFeedback, RecipeSummary, ScanResponse, SuggestResponse, TasteProfile } from "../types";
 import type { Backend, ListResponse, PantryData } from "./types";
 
 /** Talks to the MongoDB-backed REST API. */
@@ -7,6 +7,7 @@ export const remoteBackend: Backend = {
   mode: "mongo",
 
   suggest: (input) => api<SuggestResponse>("/recipes/suggest", { body: input }),
+  getTasteProfile: () => api<TasteProfile>("/recipes/taste-profile"),
   getRecipe: (id) => api<RecipeDto>(`/recipes/${id}`),
   recipeDetails: (id) => api<RecipeDto>(`/recipes/${id}/details`, { method: "POST" }),
   recipeImage: (id) => api<{ imageUrl: string }>(`/recipes/${id}/image`, { method: "POST" }),

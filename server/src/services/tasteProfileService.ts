@@ -2,6 +2,7 @@ import type { RecipeCard, TasteProfile } from "../schemas/recipe.js";
 import { RecipeFeedback, type RecipeFeedbackDoc } from "../models/RecipeFeedback.js";
 
 export type RecipeTagSnapshot = RecipeFeedbackDoc["tagSnapshot"];
+export const MIN_TAG_RECIPES = 3;
 
 export function tagSnapshotForCard(card: RecipeCard): RecipeTagSnapshot {
   return {
@@ -39,22 +40,26 @@ function labelsFromSnapshot(snapshot: RecipeTagSnapshot): string[] {
 export function summarizeTasteProfile(
   feedback: Array<Pick<RecipeFeedbackDoc, "tried" | "rating" | "tagSnapshot">>,
 ): TasteProfile {
-  const scores = new Map<string, number>();
+  const scores = new Map<string, { positive: number; negative: number; recipes: number }>();
   for (const entry of feedback) {
     if (!entry.rating) continue;
     const weight = entry.tried ? 2 : 1;
     const direction = entry.rating === "liked" ? 1 : -1;
     for (const tag of labelsFromSnapshot(entry.tagSnapshot)) {
-      scores.set(tag, (scores.get(tag) ?? 0) + direction * weight);
+      const signal = scores.get(tag) ?? { positive: 0, negative: 0, recipes: 0 };
+      if (direction > 0) signal.positive += weight;
+      else signal.negative += weight;
+      signal.recipes += 1;
+      scores.set(tag, signal);
     }
   }
 
   const format = (direction: 1 | -1) =>
     [...scores.entries()]
-      .filter(([, score]) => Math.sign(score) === direction)
-      .sort((a, b) => direction === 1 ? b[1] - a[1] : a[1] - b[1])
-      .slice(0, 20)
-      .map(([tag, score]) => `${tag} (signal ${Math.abs(score)})`);
+      .filter(([, signal]) => signal.recipes >= MIN_TAG_RECIPES && Math.sign(signal.positive - signal.negative) === direction)
+      .map(([tag, signal]) => ({ tag, score: (signal.positive - signal.negative) / (signal.positive + signal.negative), distinctRecipes: signal.recipes }))
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
+      .slice(0, 20);
 
   return { likedTags: format(1), avoidedTags: format(-1) };
 }

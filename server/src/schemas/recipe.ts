@@ -149,8 +149,8 @@ export const Preferences = z.object({
 export type Preferences = z.infer<typeof Preferences>;
 
 export const TasteProfile = z.object({
-  likedTags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
-  avoidedTags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
+  likedTags: z.array(z.object({ tag: z.string().trim().min(1).max(100), score: z.number().min(-1).max(1), distinctRecipes: z.number().int().min(3) })).max(30).default([]),
+  avoidedTags: z.array(z.object({ tag: z.string().trim().min(1).max(100), score: z.number().min(-1).max(1), distinctRecipes: z.number().int().min(3) })).max(30).default([]),
 });
 export type TasteProfile = z.infer<typeof TasteProfile>;
 

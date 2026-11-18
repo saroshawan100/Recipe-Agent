@@ -12,6 +12,15 @@ export function useSuggest() {
   });
 }
 
+export function useTasteProfile() {
+  return useQuery({
+    queryKey: ["taste-profile"],
+    queryFn: async () => (await getBackend()).getTasteProfile(),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export function useRecipe(id: string | undefined) {
   return useQuery({
     queryKey: ["recipe", id],
@@ -35,7 +44,10 @@ export function useSaveRecipeFeedback() {
   return useMutation({
     mutationFn: async ({ id, ...feedback }: { id: string } & Pick<RecipeFeedback, "tried" | "rating">) =>
       (await getBackend()).saveRecipeFeedback(id, feedback),
-    onSuccess: (feedback, { id }) => qc.setQueryData(["recipe-feedback", id], feedback),
+    onSuccess: (feedback, { id }) => {
+      qc.setQueryData(["recipe-feedback", id], feedback);
+      qc.invalidateQueries({ queryKey: ["taste-profile"] });
+    },
   });
 }
 

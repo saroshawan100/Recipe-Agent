@@ -95,7 +95,7 @@ export function IngredientPicker() {
         </div>
 
         {!searching && (
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
+          <div className="flex flex-wrap gap-2 pb-1">
             {CATEGORIES.map(({ id, label, icon: Icon }) => {
               const active = id === category;
               const count = countByCategory[id];

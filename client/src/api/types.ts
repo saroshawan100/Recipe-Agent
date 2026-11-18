@@ -55,8 +55,14 @@ export interface RecipeFeedback {
 }
 
 export interface TasteProfile {
-  likedTags: string[];
-  avoidedTags: string[];
+  likedTags: TasteTagSignal[];
+  avoidedTags: TasteTagSignal[];
+}
+
+export interface TasteTagSignal {
+  tag: string;
+  score: number;
+  distinctRecipes: number;
 }
 
 export interface RecipeCard {

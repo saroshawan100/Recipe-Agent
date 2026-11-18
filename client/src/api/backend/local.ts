@@ -57,6 +57,8 @@ interface LocalFeedbackRecord extends RecipeFeedback {
   };
 }
 
+const MIN_TAG_RECIPES = 3;
+
 const newId = () => crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
 const inFlight = new Map<string, Promise<unknown>>();
@@ -111,18 +113,28 @@ function feedbackTags(record: LocalFeedbackRecord) {
 
 async function getLocalTasteProfile(): Promise<TasteProfile> {
   const feedback = (await idb.getAll<LocalFeedbackRecord>("feedback")).filter((entry) => entry.rating);
-  const scores = new Map<string, number>();
+  const scores = new Map<string, { positive: number; negative: number; recipes: number }>();
   for (const entry of feedback) {
     const direction = entry.rating === "liked" ? 1 : -1;
     const weight = entry.tried ? 2 : 1;
-    for (const tag of feedbackTags(entry)) scores.set(tag, (scores.get(tag) ?? 0) + direction * weight);
+    for (const tag of feedbackTags(entry)) {
+      const signal = scores.get(tag) ?? { positive: 0, negative: 0, recipes: 0 };
+      if (direction > 0) signal.positive += weight;
+      else signal.negative += weight;
+      signal.recipes += 1;
+      scores.set(tag, signal);
+    }
   }
   const toSignals = (direction: 1 | -1) =>
     [...scores.entries()]
-      .filter(([, score]) => Math.sign(score) === direction)
-      .sort((a, b) => direction === 1 ? b[1] - a[1] : a[1] - b[1])
-      .slice(0, 20)
-      .map(([tag, score]) => `${tag} (signal ${Math.abs(score)})`);
+      .filter(([, signal]) => signal.recipes >= MIN_TAG_RECIPES && Math.sign(signal.positive - signal.negative) === direction)
+      .map(([tag, signal]) => ({
+        tag,
+        score: (signal.positive - signal.negative) / (signal.positive + signal.negative),
+        distinctRecipes: signal.recipes,
+      }))
+      .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
+      .slice(0, 20);
   return { likedTags: toSignals(1), avoidedTags: toSignals(-1) };
 }
 
@@ -167,8 +179,10 @@ const saveList = async (items: ShoppingItem[]): Promise<ListResponse> => {
 export const localBackend: Backend = {
   mode: "browser",
 
+  getTasteProfile: getLocalTasteProfile,
+
   async suggest(input) {
-    const request = { ...input, tasteProfile: await getLocalTasteProfile() };
+    const request = { ...input, tasteProfile: input.tasteProfile ?? await getLocalTasteProfile() };
     const result = await ai<{ chefNote: string; makeNow: RecipeCard[]; quickShop: RecipeCard[] }>("/suggest", request);
     const createdAt = new Date().toISOString();
     const make = (group: LocalRecipe["group"]) => (card: RecipeCard): LocalRecipe => ({

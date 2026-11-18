@@ -5,6 +5,7 @@ import { usePantry, useSavePantry } from "@/api/hooks";
 import type { PantryItem, RecipeDetails } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/primitives";
+import { ingredientKey, useKitchenStore } from "@/store/useKitchenStore";
 
 type UnitGroup = "count" | "mass" | "volume";
 const units: Record<string, { group: UnitGroup; factor: number }> = {
@@ -77,6 +78,7 @@ function findStock(name: string, items: PantryItem[]) {
 export function PantryConsumptionControl({ details }: { details: RecipeDetails }) {
   const pantry = usePantry();
   const savePantry = useSavePantry();
+  const removeKitchenItems = useKitchenStore((state) => state.removeMany);
   const pantryItems = pantry.data?.items ?? [];
   const rows = useMemo(() => {
     const seen = new Set<string>();
@@ -101,7 +103,13 @@ export function PantryConsumptionControl({ details }: { details: RecipeDetails }
     savePantry.mutate(
       { items: pantryItems.filter((item) => !removed.has(normalizedName(item.name))), staples: pantry.data?.staples ?? [] },
       {
-        onSuccess: () => toast.success(`Removed ${removed.size} ingredient${removed.size === 1 ? "" : "s"} from your pantry`),
+        onSuccess: () => {
+          const removedKeys = pantryItems
+            .filter((item) => removed.has(normalizedName(item.name)))
+            .map((item) => ingredientKey(item.name));
+          removeKitchenItems(removedKeys);
+          toast.success(`Removed ${removed.size} ingredient${removed.size === 1 ? "" : "s"} from your pantry`);
+        },
         onError: (error) => toast.error("Couldn't update your pantry", { description: error.message }),
       },
     );

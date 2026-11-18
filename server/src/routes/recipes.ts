@@ -13,7 +13,16 @@ export const recipesRouter = Router();
 
 recipesRouter.post("/suggest", aiLimiter, async (req, res) => {
   const input = SuggestRequest.parse(req.body);
-  const ctx = { ...input, tasteProfile: await getTasteProfile(req.clientId) };
+  const savedTasteProfile = await getTasteProfile(req.clientId);
+  const selectedLiked = new Set(input.tasteProfile.likedTags.map((signal) => signal.tag));
+  const selectedAvoided = new Set(input.tasteProfile.avoidedTags.map((signal) => signal.tag));
+  const ctx = {
+    ...input,
+    tasteProfile: {
+      likedTags: savedTasteProfile.likedTags.filter((signal) => selectedLiked.has(signal.tag)),
+      avoidedTags: savedTasteProfile.avoidedTags.filter((signal) => selectedAvoided.has(signal.tag)),
+    },
+  };
   const result = await suggestRecipes(ctx);
 
   const toDoc = (group: RecipeGroup) => (card: (typeof result.makeNow)[number]) => ({
@@ -33,6 +42,10 @@ recipesRouter.post("/suggest", aiLimiter, async (req, res) => {
     makeNow: summaries.filter((r) => r.group === "makeNow"),
     quickShop: summaries.filter((r) => r.group === "quickShop"),
   });
+});
+
+recipesRouter.get("/taste-profile", async (req, res) => {
+  res.json(await getTasteProfile(req.clientId));
 });
 
 const RecipeFeedbackInput = z.object({

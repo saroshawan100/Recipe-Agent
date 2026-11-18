@@ -1,14 +1,16 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useInView } from "framer-motion";
 import { ArrowRight, ChefHat, Flame, ListChecks, ShoppingBasket } from "lucide-react";
 import { toast } from "sonner";
-import { useSuggest } from "@/api/hooks";
+import { useSuggest, useTasteProfile } from "@/api/hooks";
 import { IngredientImage } from "@/components/kitchen/IngredientImage";
 import { IngredientPicker } from "@/components/kitchen/IngredientPicker";
 import { PantryTray } from "@/components/kitchen/PantryTray";
 import { PreferencesPanel } from "@/components/kitchen/PreferencesPanel";
+import { TastePreferencesPanel } from "@/components/kitchen/TastePreferencesPanel";
 import { Results, ResultsLoading } from "@/components/kitchen/Results";
 import { Button } from "@/components/ui/button";
+import type { TasteProfile } from "@/api/types";
 import { useKitchenStore } from "@/store/useKitchenStore";
 
 const FEATURES = [
@@ -25,11 +27,17 @@ export function Kitchen() {
   const results = useKitchenStore((s) => s.results);
   const setResults = useKitchenStore((s) => s.setResults);
   const suggest = useSuggest();
+  const tasteProfileQuery = useTasteProfile();
+  const [tasteProfile, setTasteProfile] = useState<TasteProfile>({ likedTags: [], avoidedTags: [] });
   const resultsRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const ctaInView = useInView(ctaRef);
   const resultsInView = useInView(resultsRef, { margin: "0px 0px -40% 0px" });
   const showFloatingCta = selected.length > 0 && !ctaInView && !resultsInView;
+
+  useEffect(() => {
+    if (tasteProfileQuery.data) setTasteProfile(tasteProfileQuery.data);
+  }, [tasteProfileQuery.data]);
 
   const scrollToResults = () =>
     window.setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -45,6 +53,7 @@ export function Kitchen() {
         ingredients: selected.map((s) => ({ name: s.name, category: s.category, quantity: s.quantity || undefined, useSoon: s.useSoon || undefined })),
         staples,
         preferences: prefs,
+        tasteProfile,
       },
       {
         onSuccess: (data) => {
@@ -81,12 +90,20 @@ export function Kitchen() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <IngredientPicker />
         <div className="space-y-6">
+          <IngredientPicker />
           <PantryTray />
+        </div>
+        <div className="space-y-6">
           <PreferencesPanel />
+          <TastePreferencesPanel
+            available={tasteProfileQuery.data ?? { likedTags: [], avoidedTags: [] }}
+            selected={tasteProfile}
+            onChange={setTasteProfile}
+            loading={tasteProfileQuery.isLoading}
+          />
           <div ref={ctaRef}>
-            <SuggestButton onClick={onSuggest} pending={suggest.isPending} />
+            <SuggestButton onClick={onSuggest} pending={suggest.isPending} disabled={tasteProfileQuery.isLoading} />
           </div>
         </div>
       </div>
@@ -115,7 +132,7 @@ export function Kitchen() {
                 <span className="font-semibold">{selected.length}</span>
                 <span className="block text-xs text-muted">ingredients</span>
               </div>
-              <SuggestButton onClick={onSuggest} pending={suggest.isPending} className="h-12 flex-1 text-base" />
+            <SuggestButton onClick={onSuggest} pending={suggest.isPending} disabled={tasteProfileQuery.isLoading} className="h-12 flex-1 text-base" />
             </div>
           </motion.div>
         )}
@@ -124,9 +141,9 @@ export function Kitchen() {
   );
 }
 
-function SuggestButton({ onClick, pending, className }: { onClick: () => void; pending: boolean; className?: string }) {
+function SuggestButton({ onClick, pending, disabled, className }: { onClick: () => void; pending: boolean; disabled?: boolean; className?: string }) {
   return (
-    <Button size="xl" className={className ?? "w-full"} onClick={onClick} loading={pending}>
+    <Button size="xl" className={className ?? "w-full"} onClick={onClick} loading={pending} disabled={disabled}>
       {pending ? "Cooking up ideas..." : "What can I make?"}
       {!pending && <ArrowRight className="h-5 w-5" />}
     </Button>

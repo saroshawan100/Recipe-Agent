@@ -39,6 +39,7 @@ interface KitchenState {
   toggle: (item: SelectedIngredient) => void;
   add: (item: SelectedIngredient) => void;
   remove: (key: string) => void;
+  removeMany: (keys: string[]) => void;
   update: (key: string, patch: Partial<SelectedIngredient>) => void;
   clear: () => void;
   setPrefs: (patch: Partial<Preferences>) => void;
@@ -65,6 +66,10 @@ export const useKitchenStore = create<KitchenState>()(
       add: (item) =>
         set((s) => (s.selected.some((i) => i.key === item.key) ? s : { selected: [...s.selected, item] })),
       remove: (key) => set((s) => ({ selected: s.selected.filter((i) => i.key !== key) })),
+      removeMany: (keys) => {
+        const removed = new Set(keys);
+        set((s) => ({ selected: s.selected.filter((i) => !removed.has(i.key)) }));
+      },
       update: (key, patch) =>
         set((s) => ({ selected: s.selected.map((i) => (i.key === key ? { ...i, ...patch } : i)) })),
       clear: () => set({ selected: [] }),

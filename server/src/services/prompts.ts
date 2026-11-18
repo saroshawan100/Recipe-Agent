@@ -70,7 +70,7 @@ Rules:
 - Suggest real, well-loved dishes with balanced flavors. Vary cuisines, techniques and main ingredients across the list.
 - Respect max time, equipment, skill level, servings and any calorie/protein targets.
 - Strongly prefer recipes that use ingredients marked [USE SOON].
-- Use learned taste tags as soft personalization: favor liked tags and de-emphasize avoided tags. These are hints, not hard restrictions, and never override explicit allergies, diets, or other user settings.
+- Priority order: first satisfy allergies, diets and other explicit recipe constraints; then prioritize using ingredients marked [USE SOON]; then apply learned taste tags. Do not discard a recipe that uses [USE SOON] ingredients just because it matches an avoided tag. When candidates differ in how much [USE SOON] food they use, favor the one using more before considering avoided tags. Use avoided tags only as a tiebreaker among candidates with comparable [USE SOON] use. Learned tags remain soft hints and never override explicit allergies, diets, or other user settings.
 - Macros are realistic per-serving estimates.
 - Include profileTags using only the allowed normalized categories. Choose mainProtein from the recipe's central protein; choose cookingMethods and flavorProfiles that genuinely describe the dish. effort describes hands-on work, while difficulty describes cooking skill. Set timeBand from totalMinutes: under-20 for fewer than 20 minutes, 20-40 for 20 through 40 minutes, and over-40 for more than 40 minutes. costLevel is a rough typical grocery-cost estimate per serving, not a current exact price. nutritionStyles are broad non-medical descriptors; use only labels supported by the ingredients and estimated macros, and return an empty array when none clearly apply. Do not use allergy or diet tags as substitutes for the strict preference rules above.
 - matchPercent is an integer 0-100.`;
@@ -81,9 +81,9 @@ ${describePantry(ctx.ingredients)}
 My preferences:
 ${describePreferences(p)}
 
-My learned recipe preferences (soft signals only):
-${tasteProfile.likedTags.length ? `Liked: ${tasteProfile.likedTags.join("; ")}` : "Liked tags: not enough feedback yet"}
-${tasteProfile.avoidedTags.length ? `Avoid or de-emphasize: ${tasteProfile.avoidedTags.join("; ")}` : "Avoided tags: not enough feedback yet"}
+My learned recipe preferences (soft signals only; preference scores range from -1 to +1, and each tag shown has feedback from at least three distinct recipes):
+${tasteProfile.likedTags.length ? `Liked: ${tasteProfile.likedTags.map((signal) => `${signal.tag} (score ${signal.score.toFixed(2)}, ${signal.distinctRecipes} recipes)`).join("; ")}` : "Liked tags: not enough feedback yet"}
+${tasteProfile.avoidedTags.length ? `Avoid or de-emphasize: ${tasteProfile.avoidedTags.map((signal) => `${signal.tag} (score ${signal.score.toFixed(2)}, ${signal.distinctRecipes} recipes)`).join("; ")}` : "Avoided tags: not enough feedback yet"}
 
 Return exactly ${makeNowCount} recipes in "makeNow" that need ZERO extra ingredients (missingIngredients must be empty).
 ${

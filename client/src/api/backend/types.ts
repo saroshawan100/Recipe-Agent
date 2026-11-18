@@ -64,6 +64,7 @@ export interface Backend {
   mode: StorageMode;
 
   suggest(input: SuggestInput): Promise<SuggestResponse>;
+  getTasteProfile(): Promise<TasteProfile>;
   getRecipe(id: string): Promise<RecipeDto>;
   recipeDetails(id: string): Promise<RecipeDto>;
   recipeImage(id: string): Promise<{ imageUrl: string }>;
