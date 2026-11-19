@@ -3,6 +3,8 @@ import { RecipeFeedback, type RecipeFeedbackDoc } from "../models/RecipeFeedback
 
 export type RecipeTagSnapshot = RecipeFeedbackDoc["tagSnapshot"];
 export const MIN_TAG_RECIPES = 3;
+export const MIN_FAVOR_SCORE = 0.25;
+export const MAX_AVOID_SCORE = -0.5;
 
 export function tagSnapshotForCard(card: RecipeCard): RecipeTagSnapshot {
   return {
@@ -56,8 +58,11 @@ export function summarizeTasteProfile(
 
   const format = (direction: 1 | -1) =>
     [...scores.entries()]
-      .filter(([, signal]) => signal.recipes >= MIN_TAG_RECIPES && Math.sign(signal.positive - signal.negative) === direction)
       .map(([tag, signal]) => ({ tag, score: (signal.positive - signal.negative) / (signal.positive + signal.negative), distinctRecipes: signal.recipes }))
+      .filter((signal) =>
+        signal.distinctRecipes >= MIN_TAG_RECIPES &&
+        (direction === 1 ? signal.score >= MIN_FAVOR_SCORE : signal.score <= MAX_AVOID_SCORE),
+      )
       .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
       .slice(0, 20);
 

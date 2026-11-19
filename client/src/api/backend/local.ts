@@ -58,6 +58,8 @@ interface LocalFeedbackRecord extends RecipeFeedback {
 }
 
 const MIN_TAG_RECIPES = 3;
+const MIN_FAVOR_SCORE = 0.25;
+const MAX_AVOID_SCORE = -0.5;
 
 const newId = () => crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
@@ -127,12 +129,15 @@ async function getLocalTasteProfile(): Promise<TasteProfile> {
   }
   const toSignals = (direction: 1 | -1) =>
     [...scores.entries()]
-      .filter(([, signal]) => signal.recipes >= MIN_TAG_RECIPES && Math.sign(signal.positive - signal.negative) === direction)
       .map(([tag, signal]) => ({
         tag,
         score: (signal.positive - signal.negative) / (signal.positive + signal.negative),
         distinctRecipes: signal.recipes,
       }))
+      .filter((signal) =>
+        signal.distinctRecipes >= MIN_TAG_RECIPES &&
+        (direction === 1 ? signal.score >= MIN_FAVOR_SCORE : signal.score <= MAX_AVOID_SCORE),
+      )
       .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
       .slice(0, 20);
   return { likedTags: toSignals(1), avoidedTags: toSignals(-1) };

@@ -25,7 +25,9 @@ export function TastePreferencesPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">Taste preferences</h2>
-          <p className="mt-1 text-sm text-muted">Your saved feedback starts selected. Uncheck tags to explore beyond your usual tastes.</p>
+          <p className="mt-1 text-sm text-muted">
+            Your saved feedback starts selected. Uncheck tags to explore beyond your usual tastes. Tags need feedback on 3 distinct recipes; Favor starts at +0.25 and De-emphasize at −0.50.
+          </p>
         </div>
         <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted">Optional</span>
       </div>
