@@ -21,6 +21,15 @@ export function useTasteProfile() {
   });
 }
 
+export function useSetTasteTagRemoved() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ tag, removed }: { tag: string; removed: boolean }) =>
+      (await getBackend()).setTasteTagRemoved(tag, removed),
+    onSuccess: (profile) => qc.setQueryData(["taste-profile"], profile),
+  });
+}
+
 export function useRecipe(id: string | undefined) {
   return useQuery({
     queryKey: ["recipe", id],

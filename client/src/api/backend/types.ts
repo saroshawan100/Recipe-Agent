@@ -65,6 +65,7 @@ export interface Backend {
 
   suggest(input: SuggestInput): Promise<SuggestResponse>;
   getTasteProfile(): Promise<TasteProfile>;
+  setTasteTagRemoved(tag: string, removed: boolean): Promise<TasteProfile>;
   getRecipe(id: string): Promise<RecipeDto>;
   recipeDetails(id: string): Promise<RecipeDto>;
   recipeImage(id: string): Promise<{ imageUrl: string }>;

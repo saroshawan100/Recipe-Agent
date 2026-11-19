@@ -8,6 +8,7 @@ export const remoteBackend: Backend = {
 
   suggest: (input) => api<SuggestResponse>("/recipes/suggest", { body: input }),
   getTasteProfile: () => api<TasteProfile>("/recipes/taste-profile"),
+  setTasteTagRemoved: (tag, removed) => api<TasteProfile>("/recipes/taste-profile/removed-tags", { method: "PATCH", body: { tag, removed } }),
   getRecipe: (id) => api<RecipeDto>(`/recipes/${id}`),
   recipeDetails: (id) => api<RecipeDto>(`/recipes/${id}/details`, { method: "POST" }),
   recipeImage: (id) => api<{ imageUrl: string }>(`/recipes/${id}/image`, { method: "POST" }),

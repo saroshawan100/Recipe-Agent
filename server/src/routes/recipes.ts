@@ -7,7 +7,7 @@ import { Recipe, toRecipeDto, toRecipeSummary, type RecipeGroup } from "../model
 import { SuggestRequest } from "../schemas/recipe.js";
 import { getOrCreateRecipeImage } from "../services/imageService.js";
 import { suggestRecipes } from "../services/openaiService.js";
-import { getTasteProfile, tagSnapshotForCard } from "../services/tasteProfileService.js";
+import { getTasteProfile, setTasteTagRemoved, tagSnapshotForCard } from "../services/tasteProfileService.js";
 
 export const recipesRouter = Router();
 
@@ -21,6 +21,7 @@ recipesRouter.post("/suggest", aiLimiter, async (req, res) => {
     tasteProfile: {
       likedTags: savedTasteProfile.likedTags.filter((signal) => selectedLiked.has(signal.tag)),
       avoidedTags: savedTasteProfile.avoidedTags.filter((signal) => selectedAvoided.has(signal.tag)),
+      removedTags: savedTasteProfile.removedTags,
     },
   };
   const result = await suggestRecipes(ctx);
@@ -46,6 +47,11 @@ recipesRouter.post("/suggest", aiLimiter, async (req, res) => {
 
 recipesRouter.get("/taste-profile", async (req, res) => {
   res.json(await getTasteProfile(req.clientId));
+});
+
+recipesRouter.patch("/taste-profile/removed-tags", async (req, res) => {
+  const { tag, removed } = z.object({ tag: z.string().trim().min(1).max(100), removed: z.boolean() }).parse(req.body);
+  res.json(await setTasteTagRemoved(req.clientId, tag, removed));
 });
 
 const RecipeFeedbackInput = z.object({

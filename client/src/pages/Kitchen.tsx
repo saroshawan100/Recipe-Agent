@@ -28,7 +28,7 @@ export function Kitchen() {
   const setResults = useKitchenStore((s) => s.setResults);
   const suggest = useSuggest();
   const tasteProfileQuery = useTasteProfile();
-  const [tasteProfile, setTasteProfile] = useState<TasteProfile>({ likedTags: [], avoidedTags: [] });
+  const [tasteProfile, setTasteProfile] = useState<TasteProfile>({ likedTags: [], avoidedTags: [], removedTags: [] });
   const resultsRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const ctaInView = useInView(ctaRef);
@@ -97,7 +97,7 @@ export function Kitchen() {
         <div className="space-y-6">
           <PreferencesPanel />
           <TastePreferencesPanel
-            available={tasteProfileQuery.data ?? { likedTags: [], avoidedTags: [] }}
+            available={tasteProfileQuery.data ?? { likedTags: [], avoidedTags: [], removedTags: [] }}
             selected={tasteProfile}
             onChange={setTasteProfile}
             loading={tasteProfileQuery.isLoading}

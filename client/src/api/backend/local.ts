@@ -115,6 +115,8 @@ function feedbackTags(record: LocalFeedbackRecord) {
 
 async function getLocalTasteProfile(): Promise<TasteProfile> {
   const feedback = (await idb.getAll<LocalFeedbackRecord>("feedback")).filter((entry) => entry.rating);
+  const removedTags = (await idb.get<string[]>("kv", "removedTasteTags")) ?? [];
+  const removed = new Set(removedTags);
   const scores = new Map<string, { positive: number; negative: number; recipes: number }>();
   for (const entry of feedback) {
     const direction = entry.rating === "liked" ? 1 : -1;
@@ -140,7 +142,11 @@ async function getLocalTasteProfile(): Promise<TasteProfile> {
       )
       .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
       .slice(0, 20);
-  return { likedTags: toSignals(1), avoidedTags: toSignals(-1) };
+  return {
+    likedTags: toSignals(1).filter((signal) => !removed.has(signal.tag)),
+    avoidedTags: toSignals(-1).filter((signal) => !removed.has(signal.tag)),
+    removedTags,
+  };
 }
 
 async function findRecipe(id: string): Promise<LocalRecipe> {
@@ -185,6 +191,14 @@ export const localBackend: Backend = {
   mode: "browser",
 
   getTasteProfile: getLocalTasteProfile,
+
+  async setTasteTagRemoved(tag, shouldRemove) {
+    const removedTags = new Set((await idb.get<string[]>("kv", "removedTasteTags")) ?? []);
+    if (shouldRemove) removedTags.add(tag);
+    else removedTags.delete(tag);
+    await idb.put("kv", [...removedTags], "removedTasteTags");
+    return getLocalTasteProfile();
+  },
 
   async suggest(input) {
     const request = { ...input, tasteProfile: input.tasteProfile ?? await getLocalTasteProfile() };

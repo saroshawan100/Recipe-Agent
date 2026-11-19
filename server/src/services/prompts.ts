@@ -53,7 +53,7 @@ function describePreferences(p: Preferences): string {
 
 export function suggestPrompt(ctx: RecipeContext) {
   const { preferences: p } = ctx;
-  const tasteProfile = ctx.tasteProfile ?? { likedTags: [], avoidedTags: [] };
+  const tasteProfile = ctx.tasteProfile ?? { likedTags: [], avoidedTags: [], removedTags: [] };
   const makeNowCount = p.mode === "haveOnly" ? 6 : 4;
   const quickShopCount = p.mode === "haveOnly" ? 0 : 4;
   const staples = ctx.staples.length ? ctx.staples.join(", ") : "salt, black pepper, cooking oil, water";

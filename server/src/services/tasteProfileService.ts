@@ -1,5 +1,6 @@
 import type { RecipeCard, TasteProfile } from "../schemas/recipe.js";
 import { RecipeFeedback, type RecipeFeedbackDoc } from "../models/RecipeFeedback.js";
+import { TasteProfileSettings } from "../models/TasteProfileSettings.js";
 
 export type RecipeTagSnapshot = RecipeFeedbackDoc["tagSnapshot"];
 export const MIN_TAG_RECIPES = 3;
@@ -66,12 +67,29 @@ export function summarizeTasteProfile(
       .sort((a, b) => Math.abs(b.score) - Math.abs(a.score) || b.distinctRecipes - a.distinctRecipes)
       .slice(0, 20);
 
-  return { likedTags: format(1), avoidedTags: format(-1) };
+  return { likedTags: format(1), avoidedTags: format(-1), removedTags: [] };
 }
 
 export async function getTasteProfile(clientId: string): Promise<TasteProfile> {
-  const feedback = await RecipeFeedback.find({ clientId, rating: { $ne: null } })
-    .select("tried rating tagSnapshot")
-    .lean();
-  return summarizeTasteProfile(feedback);
+  const [feedback, settings] = await Promise.all([
+    RecipeFeedback.find({ clientId, rating: { $ne: null } }).select("tried rating tagSnapshot").lean(),
+    TasteProfileSettings.findOne({ clientId }).select("removedTags").lean(),
+  ]);
+  const removedTags = settings?.removedTags ?? [];
+  const removed = new Set(removedTags);
+  const profile = summarizeTasteProfile(feedback);
+  return {
+    likedTags: profile.likedTags.filter((signal) => !removed.has(signal.tag)),
+    avoidedTags: profile.avoidedTags.filter((signal) => !removed.has(signal.tag)),
+    removedTags,
+  };
+}
+
+export async function setTasteTagRemoved(clientId: string, tag: string, isRemoved: boolean): Promise<TasteProfile> {
+  await TasteProfileSettings.findOneAndUpdate(
+    { clientId },
+    isRemoved ? { $addToSet: { removedTags: tag } } : { $pull: { removedTags: tag } },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+  return getTasteProfile(clientId);
 }
