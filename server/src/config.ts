@@ -30,6 +30,8 @@ export const config = {
   generatedDir: path.join(SERVER_DIR, "public", "generated"),
   clientDistDir: path.join(ROOT_DIR, "client", "dist"),
   isProduction: process.env.NODE_ENV === "production",
+  googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? "",
+  serpApiKey: process.env.SERPAPI_KEY ?? "",
 };
 
 if (!config.openaiApiKey) {
