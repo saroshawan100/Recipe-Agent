@@ -1,6 +1,11 @@
 import { api, streamApi } from "../client";
 import type { CheckinResponse, CoachingScript, CookSession, RecipeDto, RecipeFeedback, RecipeSummary, ScanResponse, SuggestResponse, TasteProfile } from "../types";
-import type { Backend, ListResponse, PantryData } from "./types";
+import type {
+  Backend,
+  ListResponse,
+  PantryData,
+  ShoppingPricesResponse,
+} from "./types";
 
 /** Talks to the MongoDB-backed REST API. */
 export const remoteBackend: Backend = {
@@ -30,6 +35,10 @@ export const remoteBackend: Backend = {
   deleteListItem: (id) => api<ListResponse>(`/shopping-list/items/${id}`, { method: "DELETE" }),
   clearChecked: () => api<ListResponse>("/shopping-list/checked", { method: "DELETE" }),
   clearList: () => api<ListResponse>("/shopping-list", { method: "DELETE" }),
+  findPrices: (location) =>
+    api<ShoppingPricesResponse>("/shopping-list/prices", {
+      body: { location },
+    }),
 
   coachScript: (recipeId, step) => api<CoachingScript>(`/cook/${recipeId}/steps/${step}/coach`, { method: "POST" }),
   stepReferenceImage: (recipeId, step) => api<{ imageUrl: string }>(`/cook/${recipeId}/steps/${step}/image`, { method: "POST" }),
