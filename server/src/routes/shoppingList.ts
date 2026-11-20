@@ -5,8 +5,11 @@ import { notFound } from "../lib/httpError.js";
 import { findRecipe } from "../lib/recipes.js";
 import { ShoppingList, type ShoppingItem, type ShoppingQuantity } from "../models/ShoppingList.js";
 import { AISLES } from "../schemas/recipe.js";
+import { findNearbyStores } from "../services/storeSearchService.js";
 
 export const shoppingListRouter = Router();
+
+const STORE_RESULT_LIMIT = 3;
 
 interface IncomingItem {
   name: string;
@@ -144,4 +147,29 @@ shoppingListRouter.delete("/", async (req, res) => {
   list.items = [];
   await list.save();
   res.json({ items: [] });
+});
+
+shoppingListRouter.post("/prices", async (req, res) => {
+  const { location } = z
+    .object({
+      location: z.string().min(1),
+    })
+    .parse(req.body);
+
+  const list = await getList(req.clientId);
+
+  res.json({
+    location,
+    results: await Promise.all(
+      list.items.map(async (item) => ({
+        itemId: item.id,
+        itemName: item.name,
+        stores: await findNearbyStores(
+          item.name,
+          location,
+          STORE_RESULT_LIMIT,
+        ),
+      })),
+    ),
+  });
 });
