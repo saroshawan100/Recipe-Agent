@@ -15,7 +15,13 @@ import type {
 } from "../types";
 import { idb } from "./idb";
 import { mergeItems, type IncomingItem } from "./shopping";
-import type { Backend, ListResponse, PantryData, SuggestInput } from "./types";
+import type {
+  Backend,
+  ListResponse,
+  PantryData,
+  SuggestInput,
+  ShoppingPricesResponse,
+} from "./types";
 
 /** Unsaved recipes beyond this many (newest first) are pruned after each search. */
 const MAX_UNSAVED_RECIPES = 80;
@@ -324,6 +330,16 @@ export const localBackend: Backend = {
   deleteListItem: async (id) => saveList((await getList()).filter((i) => i.id !== id)),
   clearChecked: async () => saveList((await getList()).filter((i) => !i.checked)),
   clearList: () => saveList([]),
+
+  async findPrices(location): Promise<ShoppingPricesResponse> {
+    const items = await getList();
+    return api<ShoppingPricesResponse>("/shopping-list/prices", {
+      body: {
+        location,
+        items: items.map((i) => ({ id: i.id, name: i.name })),
+      },
+    });
+  },
 
   coachScript: (recipeId, step) =>
     dedupe(`coach:${recipeId}:${step}`, async () => {
