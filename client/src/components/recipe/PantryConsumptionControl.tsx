@@ -95,7 +95,7 @@ export function PantryConsumptionControl({ details }: { details: RecipeDetails }
   }, [details.ingredients, pantryItems]);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const isChecked = (ingredient: RecipeDetails["ingredients"][number], stock: PantryItem) =>
-    overrides[stock.name] ?? (stockRatio(ingredient, stock) ?? 0) >= 0.5;
+    overrides[stock.name] ?? (stock.useSoon === true || (stockRatio(ingredient, stock) ?? 0) >= 0.5);
 
   const removeSelected = () => {
     const removed = new Set(rows.filter(({ ingredient, stock }) => isChecked(ingredient, stock)).map(({ stock }) => normalizedName(stock.name)));
@@ -122,7 +122,7 @@ export function PantryConsumptionControl({ details }: { details: RecipeDetails }
         <Refrigerator className="mt-0.5 h-5 w-5 shrink-0 text-herb-500" />
         <div className="min-w-0 flex-1">
           <h2 className="font-semibold">Update your pantry</h2>
-          <p className="mt-1 text-sm text-muted">Ingredients likely used up are checked. Uncheck anything you still have; check any small amount you want to remove.</p>
+          <p className="mt-1 text-sm text-muted">“Use it up soon” items and ingredients likely used up are checked. Uncheck anything you still have; check any small amount you want to remove.</p>
           <div className="mt-3 divide-y divide-line">
             {rows.map(({ ingredient, stock }) => (
               <label key={stock.name} className="flex cursor-pointer items-center gap-3 py-2.5 text-sm">
