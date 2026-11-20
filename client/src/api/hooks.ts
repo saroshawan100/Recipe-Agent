@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBackend, type CheckinInput, type ListResponse, type PantryData, type SessionPatch, type SuggestInput } from "./backend";
+import {
+  getBackend,
+  type CheckinInput,
+  type ListResponse,
+  type PantryData,
+  type SessionPatch,
+  type SuggestInput,
+} from "./backend";
 import type { RecipeDto, RecipeFeedback } from "./types";
 
 export type { SuggestInput };
@@ -161,6 +168,12 @@ export const useDeleteListItem = () => useListMutation(async (id: string) => (aw
 export const useClearChecked = () => useListMutation(async () => (await getBackend()).clearChecked());
 
 export const useClearList = () => useListMutation(async () => (await getBackend()).clearList());
+
+export function useFindPrices() {
+  return useMutation({
+    mutationFn: async (location: string) => (await getBackend()).findPrices(location),
+  });
+}
 
 // ---------- Cook with the Chef ----------
 
