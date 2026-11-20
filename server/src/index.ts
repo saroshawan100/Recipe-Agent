@@ -3,20 +3,24 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { z } from "zod";
 import { config } from "./config.js";
 import { connectDb, isDbConnected } from "./db.js";
 import { HttpError } from "./lib/httpError.js";
 import { requireClientId } from "./middleware/clientId.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireDb } from "./middleware/requireDb.js";
-import { aiRouter } from "./routes/ai.js";
+import { ShoppingList } from "./models/ShoppingList.js";
 import { accountRouter } from "./routes/account.js";
+import { aiRouter } from "./routes/ai.js";
 import { chatRouter } from "./routes/chat.js";
 import { cookRouter } from "./routes/cook.js";
 import { pantryRouter } from "./routes/pantry.js";
 import { recipesRouter } from "./routes/recipes.js";
 import { savedRouter } from "./routes/saved.js";
 import { shoppingListRouter } from "./routes/shoppingList.js";
+import { generateShoppingSummary } from "./services/shoppingSummaryService.js";
+import { findNearbyStores } from "./services/storeSearchService.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -46,6 +50,52 @@ api.use(requireClientId);
 api.use("/auth", accountRouter);
 api.use("/account", accountRouter);
 api.use("/ai", aiRouter);
+api.post("/shopping-list/prices", async (req, res, next) => {
+  try {
+    const { location, items } = z
+      .object({
+        location: z.string().trim().min(1),
+        items: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+      })
+      .parse(req.body);
+
+    const listItems =
+      items ??
+      (config.storage === "mongo" && isDbConnected()
+        ? (await ShoppingList.findOne({ clientId: req.clientId }).lean())?.items ?? []
+        : []);
+
+    const results = await Promise.all(
+      listItems.map(async (item) => ({
+        itemId: item.id,
+        itemName: item.name,
+        stores: await findNearbyStores(item.name, location, 5),
+      })),
+    );
+
+    let aiSummary: string | null = null;
+    try {
+      aiSummary = await generateShoppingSummary(
+        location,
+        results.map((entry) => ({
+          itemName: entry.itemName,
+          stores: entry.stores,
+        })),
+      );
+    } catch (summaryErr) {
+      console.error("[shopping-list/prices] AI summary warning:", summaryErr);
+      aiSummary = null;
+    }
+
+    res.json({
+      location,
+      results,
+      aiSummary,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 if (config.storage === "mongo") {
   const data = express.Router();
   data.use(requireDb);
