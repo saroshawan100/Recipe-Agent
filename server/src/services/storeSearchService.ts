@@ -108,6 +108,39 @@ export function normalizeStoreName(storeName: string): string {
     .trim();
 }
 
+function normalizeLinkKey(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    const normalizedPath = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.origin}${normalizedPath}${parsed.search}`.toLowerCase();
+  } catch {
+    return url.trim().toLowerCase();
+  }
+}
+
+export function deduplicateStoreResults(
+  stores: StoreSearchResult[],
+): StoreSearchResult[] {
+  const byKey = new Map<string, StoreSearchResult>();
+
+  for (const store of stores) {
+    const linkKey = normalizeLinkKey(store.url);
+    // Keep distinct product links from the same store; fall back to normalized store name when unlinked.
+    const dedupeKey = linkKey
+      ? `url:${linkKey}`
+      : `store:${normalizeStoreName(store.storeName) || store.storeName.trim().toLowerCase()}`;
+
+    const existing = byKey.get(dedupeKey);
+    if (!existing || store.distanceMiles < existing.distanceMiles) {
+      byKey.set(dedupeKey, store);
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => a.distanceMiles - b.distanceMiles);
+}
+
 function parsePrice(item: SerpApiShoppingItem): number | null {
   if (
     typeof item.extracted_price === "number" &&
@@ -366,10 +399,11 @@ export async function findNearbyStores(
   );
 
   if (hasSerpApiKey) {
-    return sortedEnriched.filter((store) => store.inStock).slice(0, limit);
+    const inStockStores = sortedEnriched.filter((store) => store.inStock);
+    return deduplicateStoreResults(inStockStores).slice(0, limit);
   }
 
-  return sortedEnriched.slice(0, limit);
+  return deduplicateStoreResults(sortedEnriched).slice(0, limit);
 }
 
 async function getNearbyStores(
